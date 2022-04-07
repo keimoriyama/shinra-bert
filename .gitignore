@@ -1,3 +1,4 @@
-/code/linkjp-sample-210428
+*.json
 *.zip
 .DS_Store
+code/data/trial_en
