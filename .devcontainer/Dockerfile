@@ -7,4 +7,6 @@ RUN pip3 install \
     transformers==3.0.1 \
     tensorboard==2.4.1 \
     tensorboardX==2.2 \
-    scikit-learn==0.24.1
+    scikit-learn==0.24.1 \
+    autopep8 \
+    flake8 
