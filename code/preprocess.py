@@ -60,18 +60,13 @@ def preprocess():
     wiki_data = pd.DataFrame(tokenized_texts)
     label_df.drop_duplicates(subset="pageid")
     labels = label_df[~label_df.duplicated(subset='ENE_name')].reset_index().drop(columns=['ENE_id', 'title', 'index', 'pageid'])
-    # labels['label'] = 0
     label_index = [i for i in range(len(labels))]
     labels['label'] = label_index
-    # print(labels.head())
     label_df = pd.merge(label_df, labels, on="ENE_name")
-    # print(label_df.head())
     df = pd.merge(wiki_data, label_df, left_on='id', right_on='pageid')
 
     df = df.drop(columns=["pageid", "id", "ENE_id"])
 
-    # df = df.sort_values('label')
-    # print(df.head())
     df.to_csv("./data/csv/data.csv", index=False)
     return df
 
