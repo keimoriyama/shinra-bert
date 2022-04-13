@@ -41,19 +41,16 @@ def gen_data():
     return label_df, wiki_df
 
 
-def main():
-    args = load_arg()
+def preprocess():
 
     label_df, wiki_df = gen_data()
-    label_list, label_pair_list = [], []
 
     tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
     tokenized_texts = []
     with tqdm(total=len(wiki_df), desc="tokenizing text") as t:
-        for _, wiki in wiki_df.iterrows():
-            text = wiki['text']
-            id = wiki['id']
-            #tokenized_text = tokenizer.tokenize(text)
+        for index in wiki_df.index:
+            text = wiki_df['text'][index]
+            id = wiki_df['id'][index]
             pair = {
                 "id": id,
                 "tokenized_text": text
@@ -62,14 +59,25 @@ def main():
             t.update(1)
     wiki_data = pd.DataFrame(tokenized_texts)
     label_df.drop_duplicates(subset="pageid")
-
+    labels = label_df[~label_df.duplicated(subset='ENE_name')].reset_index().drop(columns=['ENE_id', 'title', 'index', 'pageid'])
+    # labels['label'] = 0
+    label_index = [i for i in range(len(labels))]
+    labels['label'] = label_index
+    # print(labels.head())
+    label_df = pd.merge(label_df, labels, on="ENE_name")
+    # print(label_df.head())
     df = pd.merge(wiki_data, label_df, left_on='id', right_on='pageid')
-    df['label'] = 0
 
-    def get_index(x):
-        return df[df['pageid'] == x].index[0]
-    df['label'] = df['pageid'].apply(get_index)
-    print(df.head())
+    df = df.drop(columns=["pageid", "id", "ENE_id"])
+
+    # df = df.sort_values('label')
+    # print(df.head())
+    df.to_csv("./data/csv/data.csv", index=False)
+    return df
+
+
+def main():
+    preprocess()
 
 
 if __name__ == "__main__":
