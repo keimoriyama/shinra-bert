@@ -5,14 +5,14 @@ import pandas as pd
 
 
 class FileUtils:
-    def __init__(self, base_path: str, label_name: str, wiki_name: str, limit=1000):
+    def __init__(self, base_path: str, label_name: str, wiki_name: str, limit=10):
         self.base_path = base_path
         self.label_path = self.base_path + label_name
         self.wiki_path = self.base_path + wiki_name
         self.limit = limit
 
-    def load_labeldata(self, limit):
-        return self.load_shinra_json(self.label_path, limit)
+    def load_labeldata(self):
+        return self.load_shinra_json(self.label_path)
 
     def load_wikidata(self, limit):
         wikidata = self.load_shinra_json(self.wiki_path, limit)
