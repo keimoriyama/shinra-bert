@@ -9,4 +9,5 @@ RUN pip3 install \
     tensorboardX==2.2 \
     scikit-learn==0.24.1 \
     autopep8 \
-    flake8 
+    flake8 \
+    mlflow
