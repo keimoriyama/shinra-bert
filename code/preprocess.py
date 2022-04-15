@@ -2,7 +2,7 @@ import os
 import argparse
 from data.shinra_utils import FileUtils, label_preprocess, wikidata_preprocess
 import pandas as pd
-from transformers import AutoTokenizer
+from transformers import BertTokenizer
 from tqdm import tqdm
 
 
@@ -11,7 +11,7 @@ def load_arg():
     return parser.parse_args()
 
 
-def gen_data():
+def gen_data(debug):
     label_path = "/data/csv/labels.csv"
     wiki_path = "/data/csv/wiki.csv"
     cwd = os.getcwd()
@@ -27,8 +27,8 @@ def gen_data():
         label_name = "en_ENEW_LIST.json"
         wiki_name = "en-trial-wiki-20190121-cirrussearch-content.json"
         files = FileUtils(base_path, label_name, wiki_name)
-        labels = files.load_labeldata(False)
-        wikidata = files.load_wikidata(True)
+        labels = files.load_labeldata()
+        wikidata = files.load_wikidata(debug)
         label_df = label_preprocess(labels)
         label_df.to_csv(label_path, index=False)
         del label_df, labels
@@ -41,11 +41,10 @@ def gen_data():
     return label_df, wiki_df
 
 
-def preprocess():
+def read_data(debug=False):
+    label_df, wiki_df = gen_data(debug)
 
-    label_df, wiki_df = gen_data()
-
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
+    # tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
     tokenized_texts = []
     with tqdm(total=len(wiki_df), desc="tokenizing text") as t:
         for index in wiki_df.index:
@@ -53,7 +52,7 @@ def preprocess():
             id = wiki_df['id'][index]
             pair = {
                 "id": id,
-                "tokenized_text": text
+                "text": text
             }
             tokenized_texts.append(pair)
             t.update(1)
@@ -62,13 +61,48 @@ def preprocess():
     labels = label_df[~label_df.duplicated(subset='ENE_name')].reset_index().drop(columns=['ENE_id', 'title', 'index', 'pageid'])
     label_index = [i for i in range(len(labels))]
     labels['label'] = label_index
+
     label_df = pd.merge(label_df, labels, on="ENE_name")
     df = pd.merge(wiki_data, label_df, left_on='id', right_on='pageid')
+    df.to_csv("./data/csv/data.csv", index=False)
 
     df = df.drop(columns=["pageid", "id", "ENE_id"])
+    return df, labels
 
-    df.to_csv("./data/csv/data.csv", index=False)
-    return df
+
+def check_len(text, max_len=512):
+    if len(text) > max_len:
+        return text[:max_len]
+    else:
+        return text
+
+
+def make_input(df):
+    df = df.filter(items=["text", "label"])
+    df['text'] = df['text'].apply(check_len)
+    text_ans_pair = df.values.tolist()
+    return text_ans_pair
+
+
+def make_label_index_pair(df):
+    df = df.filter(items=["label", "ENE_name"])
+    pair = {}
+    label_dict = {}
+    for i in df.index:
+        index = df['label'][i]
+        label = df['ENE_name'][i]
+        if index in label_dict.keys():
+            continue
+        pair = {index: label}
+        label_dict.update(pair)
+    return label_dict
+
+
+def preprocess(debug):
+    df, labels = read_data(debug)
+    dataset = make_input(df)
+    label_dict = make_label_index_pair(labels)
+    return dataset, label_dict
 
 
 def main():
