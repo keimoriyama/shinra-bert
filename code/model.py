@@ -26,6 +26,7 @@ def main():
     tokenizer = BertTokenizer.from_pretrained(bert_version)
     text = ["I have a pen", "I like a cat"]
     text = tokenizer(text, return_tensors="pt")
+    print(text)
     loss = model(text)
     print("loss", loss.size())
 
