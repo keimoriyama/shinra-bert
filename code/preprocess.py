@@ -11,7 +11,7 @@ def load_arg():
     return parser.parse_args()
 
 
-def gen_data(debug):
+def gen_data(debug, data_path, file_data_name, file_label_name):
     label_path = "/data/csv/labels.csv"
     wiki_path = "/data/csv/wiki.csv"
     cwd = os.getcwd()
@@ -23,9 +23,9 @@ def gen_data(debug):
     wiki_path = base + wiki_path
 
     if not os.listdir(dir_path):
-        base_path = base + "/data/trial_en/trial_en/en/"
-        label_name = "en_ENEW_LIST.json"
-        wiki_name = "en-trial-wiki-20190121-cirrussearch-content.json"
+        base_path = base + data_path
+        label_name = file_label_name
+        wiki_name = file_data_name
         files = FileUtils(base_path, label_name, wiki_name)
         labels = files.load_labeldata()
         wikidata = files.load_wikidata(debug)
@@ -41,8 +41,8 @@ def gen_data(debug):
     return label_df, wiki_df
 
 
-def read_data(debug=False):
-    label_df, wiki_df = gen_data(debug)
+def read_data(debug, data_path, file_data_name, file_label_name):
+    label_df, wiki_df = gen_data(debug, data_path, file_data_name, file_label_name)
 
     # tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
     tokenized_texts = []
@@ -98,8 +98,8 @@ def make_label_index_pair(df):
     return label_dict
 
 
-def preprocess(debug):
-    df, labels = read_data(debug)
+def preprocess(debug, data_path, file_data_name, file_label_name):
+    df, labels = read_data(debug, data_path, file_data_name, file_label_name)
     dataset = make_input(df)
     label_dict = make_label_index_pair(labels)
     return dataset, label_dict
