@@ -1,4 +1,5 @@
-FROM nvcr.io/nvidia/pytorch:20.11-py3
+FROM pytorch/pytorch
+
 
 RUN pip3 install \
     Janome==0.4.1 \
@@ -8,6 +9,10 @@ RUN pip3 install \
     tensorboard==2.4.1 \
     tensorboardX==2.2 \
     scikit-learn==0.24.1 \
+    tqdm==4.41.1 \
     autopep8 \
     flake8 \
-    mlflow
+    mlflow \
+    pytorch-lightning
+
+RUN apt-get update && apt-get install -y build-essential git
