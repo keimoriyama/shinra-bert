@@ -2,6 +2,7 @@ import json
 import tqdm
 import os
 import pandas as pd
+import gzip
 
 
 class FileUtils:
@@ -14,8 +15,8 @@ class FileUtils:
     def load_labeldata(self):
         return self.load_shinra_json(self.label_path)
 
-    def load_wikidata(self, limit):
-        wikidata = self.load_shinra_json(self.wiki_path, limit)
+    def load_wikidata(self, limit=False):
+        wikidata = self.load_shinra_gzip_json(self.wiki_path, limit)
         return self.merge_wikidata(wikidata)
 
     def merge_wikidata(self, wikidata):
@@ -39,11 +40,25 @@ class FileUtils:
                 t.update()
         return data
 
+    def load_shinra_gzip_json(self, path: str, limit=False):
+        data = []
+        with gzip.open(path, "r") as f, \
+                tqdm.tqdm(desc=os.path.basename(path)) as t:
+            for line in f:
+                if line == b'\n':
+                    continue
+                file = json.loads(line)
+                data.append(file)
+                if limit and len(data) == self.limit:
+                    break
+                t.update()
+        return data
+
 
 def label_preprocess(labels):
     df = pd.DataFrame()
     label_list = []
-    for label in tqdm.tqdm(labels, desc = "extracting page id and page name"):
+    for label in tqdm.tqdm(labels, desc="extracting page id and page name"):
         label_dict = {'pageid': label['pageid'], 'title': label['title']}
         enes = label['ENEs']
         label_ene_dict = {}
@@ -57,7 +72,7 @@ def label_preprocess(labels):
 def wikidata_preprocess(wikidata):
     df = pd.DataFrame()
     wiki_dict_list = []
-    for wiki in tqdm.tqdm(wikidata, desc = "extracting wiki data"):
+    for wiki in tqdm.tqdm(wikidata, desc="extracting wiki data"):
         # print(wiki.keys())
         wikidict = {"type": wiki['index']['_type'],
                     "id": wiki['index']['_id'],
@@ -70,12 +85,11 @@ def wikidata_preprocess(wikidata):
 
 
 def main():
-    print("hello")
     base_path = "./trial_en/trial_en/en/"
     label_name = "en_ENEW_LIST.json"
-    wiki_name = "en-trial-wiki-20190121-cirrussearch-content.json"
+    wiki_name = "en-trial-wiki-20190121-cirrussearch-content.json.gz"
     files = FileUtils(base_path, label_name, wiki_name)
-    labels = files.load_labeldata(False)
+    labels = files.load_labeldata()
     wikidata = files.load_wikidata(True)
     label_df = label_preprocess(labels)
     wiki_df = wikidata_preprocess(wikidata)
