@@ -1,15 +1,14 @@
 from preprocess import preprocess
 from model import MyBertSequenceClassification
-from transformers import BertModel, BertConfig, BertTokenizer
+from transformers import BertConfig, BertTokenizer
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
+import pytorch_lightning as pl
 import argparse
 
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
-
 
 
 def tokenize_text(text):
@@ -37,20 +36,35 @@ def collate_fn(batch):
     return tokenized_texts, label
 
 
+parser = argparse.ArgumentParser()
+
+
 def main():
-    # 
+    # コマンドで指定できるようにしたいなー
+    parser.add_argument("--data_path")
+    parser.add_argument("--file_data_name")
+    parser.add_argument("--file_label_name")
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
+    debug = args.debug
+    data_path = args.data_path
+    file_data_name = args.file_data_name
+    file_label_name = args.file_label_name
+
     cfg = BertConfig.from_pretrained(bert_version)
-    bert = BertModel(cfg)
-    data, label_index_dict = preprocess(debug)
+    data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
     # ここをラベルの数に変える
     class_num = max(label_index_dict.keys())
-    model = MyBertSequenceClassification(bert, class_num)
+    criterion = torch.nn.CrossEntropyLoss()
+    model = MyBertSequenceClassification(cfg, class_num, criterion)
     train_data, test_data = train_test_split(data)
     train_dataset = ShinraDataset(train_data)
     test_dataset = ShinraDataset(test_data)
     train_dataloader = DataLoader(train_dataset, batch_size=2, collate_fn=collate_fn, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn, shuffle=False)
-    criterion = torch.nn.CrossEntropyLoss()
+    trainer = pl.Trainer()
+    trainer.fit(model, train_dataloader, test_dataloader)
+    """
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     epoch = 10
     train_losses, val_losses = [], []
@@ -82,6 +96,7 @@ def val(model, dataloader, criterion, epoch):
             loss = criterion(output, label)
             losses.append(loss.item())
     return sum(loss) / len(loss)
+"""
 
 
 if __name__ == '__main__':
