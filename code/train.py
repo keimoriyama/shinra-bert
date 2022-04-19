@@ -12,7 +12,11 @@ tokenizer = BertTokenizer.from_pretrained(bert_version)
 
 
 def tokenize_text(text):
-    return tokenizer(text, return_tensors='pt', padding=True)
+    return tokenizer(text,
+                     return_tensors='pt',
+                     padding=True,
+                     truncated=True,
+                     max_length=512)
 
 
 class ShinraDataset(Dataset):
