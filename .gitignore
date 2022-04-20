@@ -3,6 +3,8 @@
 *.csv
 *.pyc
 code/env
+code/lightning_logs
+code/logs
 .DS_Store
 code/data/trial_en
 code/data/__pycache__/shinra_utils.cpython-36.pyc
