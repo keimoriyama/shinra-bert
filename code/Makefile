@@ -3,3 +3,9 @@ train:
 
 run_abci:
 	qsub -g gcc50441 ./abci.sh
+
+abci:
+	python train.py --debug --data_path /data/ --file_label_name en_ENEW_LIST.json --file_data_name en-trial-wiki-20190121-cirrussearch-content.json.gz	
+
+activate:
+	source env/bin/activate

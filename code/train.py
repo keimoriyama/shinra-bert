@@ -14,9 +14,8 @@ tokenizer = BertTokenizer.from_pretrained(bert_version)
 def tokenize_text(text):
     return tokenizer(text,
                      return_tensors='pt',
-                     padding=True,
-                     truncated=True,
-                     max_length=512)
+                     padding="max_length",
+                     truncation=True)
 
 
 class ShinraDataset(Dataset):
@@ -69,8 +68,8 @@ def main():
     train_dataloader = DataLoader(train_dataset, batch_size=2, collate_fn=collate_fn, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=2, collate_fn=collate_fn, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn, shuffle=False)
-    trainer = pl.Trainer()
-    trainer.fit(model, train_dataloader, val_dataloader)
+    trainer = pl.Trainer(max_epochs=10)
+    trainer.fit(model, train_dataloader, val_dataloader, )
     trainer.test(model, dataloaders=test_dataloader)
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
