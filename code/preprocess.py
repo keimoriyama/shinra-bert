@@ -42,7 +42,8 @@ def gen_data(debug, data_path, file_data_name, file_label_name):
 
 
 def read_data(debug, data_path, file_data_name, file_label_name):
-    label_df, wiki_df = gen_data(debug, data_path, file_data_name, file_label_name)
+    label_df, wiki_df = gen_data(debug, data_path, file_data_name,
+                                 file_label_name)
 
     # tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
     tokenized_texts = []
@@ -50,15 +51,14 @@ def read_data(debug, data_path, file_data_name, file_label_name):
         for index in wiki_df.index:
             text = wiki_df['text'][index]
             id = wiki_df['id'][index]
-            pair = {
-                "id": id,
-                "text": text
-            }
+            pair = {"id": id, "text": text}
             tokenized_texts.append(pair)
             t.update(1)
     wiki_data = pd.DataFrame(tokenized_texts)
     label_df.drop_duplicates(subset="pageid")
-    labels = label_df[~label_df.duplicated(subset='ENE_name')].reset_index().drop(columns=['ENE_id', 'title', 'index', 'pageid'])
+    labels = label_df[~label_df.duplicated(
+        subset='ENE_name')].reset_index().drop(
+            columns=['ENE_id', 'title', 'index', 'pageid'])
     label_index = [i for i in range(len(labels))]
     labels['label'] = label_index
 
@@ -68,13 +68,6 @@ def read_data(debug, data_path, file_data_name, file_label_name):
 
     df = df.drop(columns=["pageid", "id", "ENE_id"])
     return df, labels
-
-
-def check_len(text, max_len=512):
-    if len(text) > max_len:
-        return text[:max_len]
-    else:
-        return text
 
 
 def make_input(df):
