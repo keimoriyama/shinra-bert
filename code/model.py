@@ -26,7 +26,7 @@ class MyBertSequenceClassification(pl.LightningModule):
         text, label = batch
         output = self(text)
         loss = self.criterion(output, label)
-        self.log("train_loss", loss.item())
+        self.log("train loss", loss.item())
         return loss
 
     def validation_step(self, batch, _):
