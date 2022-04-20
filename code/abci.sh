@@ -23,4 +23,4 @@ cd /home/acd14210nv/shinra-bert/code
 # CUDA_VISIBLE_DEVICES=0 taskset -c 0-19 train.py --debug --data_path /data/trial_en/trial_en/en/ --file_label_name en_ENEW_LIST.json --file_data_name en-trial-wiki-20190121-cirrussearch-content.json.gz
 
 
-qsub -g gcc50441 -l rt_G.large train.py --debug --data_path /data/trial_en/trial_en/en/ --file_label_name en_ENEW_LIST.json --file_data_name en-trial-wiki-20190121-cirrussearch-content.json.gz
+qsub -g gcc50441 -l rt_F train.py --debug --data_path /data/trial_en/trial_en/en/ --file_label_name en_ENEW_LIST.json --file_data_name en-trial-wiki-20190121-cirrussearch-content.json.gz
