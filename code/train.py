@@ -62,12 +62,16 @@ def main():
     criterion = torch.nn.CrossEntropyLoss()
     model = MyBertSequenceClassification(cfg, class_num, criterion)
     train_data, test_data = train_test_split(data)
+    test_data, val_data = train_test_split(test_data)
     train_dataset = ShinraDataset(train_data)
     test_dataset = ShinraDataset(test_data)
+    val_dataset = ShinraDataset(val_data)
     train_dataloader = DataLoader(train_dataset, batch_size=2, collate_fn=collate_fn, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=2, collate_fn=collate_fn, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn, shuffle=False)
     trainer = pl.Trainer()
-    trainer.fit(model, train_dataloader, test_dataloader)
+    trainer.fit(model, train_dataloader, val_dataloader)
+    trainer.test(model, dataloaders=test_dataloader)
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     epoch = 10
