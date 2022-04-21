@@ -6,6 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import pytorch_lightning as pl
 import argparse
+from omegaconf import OmegaConf
 
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
@@ -43,20 +44,22 @@ parser = argparse.ArgumentParser()
 
 
 def main():
-    # コマンドで指定できるようにしたいなー
+    """
     parser.add_argument("--data_path")
     parser.add_argument("--file_data_name")
     parser.add_argument("--file_label_name")
     parser.add_argument("--debug", action="store_true")
+    """
+    parser.add_argument("--config_file")
     args = parser.parse_args()
-    debug = args.debug
-    data_path = args.data_path
-    file_data_name = args.file_data_name
-    file_label_name = args.file_label_name
+    config = OmegaConf.load("./config/" + args.config_file)
+    debug = config.debug
+    data_path = config.data.data_path
+    file_data_name = config.data.file_label_name
+    file_label_name = config.data.file_data_name
 
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
-    # ここをラベルの数に変える
     class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
     model = MyBertSequenceClassification(cfg, class_num, criterion)
@@ -69,7 +72,7 @@ def main():
     val_dataloader = DataLoader(val_dataset, batch_size=2, collate_fn=collate_fn, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn, shuffle=False)
     trainer = pl.Trainer(max_epochs=10)
-    trainer.fit(model, train_dataloader, val_dataloader, )
+    trainer.fit(model, train_dataloader, val_dataloader)
     trainer.test(model, dataloaders=test_dataloader)
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
