@@ -2,15 +2,4 @@
 *.zip
 *.csv
 *.pyc
-code/env
-code/lightning_logs
-code/logs
-.DS_Store
-code/data/trial_en
-code/data/__pycache__/shinra_utils.cpython-36.pyc
-code/__pycache__/model.cpython-36.pyc
-code/__pycache__/preprocess.cpython-36.pyc
-code/__pycache__/model.cpython-38.pyc
-code/__pycache__/preprocess.cpython-38.pyc
-code/data/__pycache__/shinra_utils.cpython-38.pyc
-code/data/en-trial-wiki-20190121-cirrussearch-content.json.gz
+*.gz

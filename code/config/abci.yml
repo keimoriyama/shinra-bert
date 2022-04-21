@@ -1,5 +1,5 @@
 name: Test
-debug: True
+debug: False
 data:
   data_path: /data/
   file_label_name: en_ENEW_LIST.json

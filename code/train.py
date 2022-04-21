@@ -8,10 +8,17 @@ import pytorch_lightning as pl
 import argparse
 from tqdm import tqdm
 from omegaconf import OmegaConf
+from torch.utils.tensorboard import SummaryWriter
+
+writer = SummaryWriter(log_dir="./logs")
 
 
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+n_max_gpus = torch.cuda.device_count()
+device_ids = list(range(min(0, n_max_gpus)))
 print(device)
+print(f"{n_max_gpus} GPUs available")
+
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
 
@@ -64,6 +71,7 @@ def main():
     class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
     model = MyBertSequenceClassification(cfg, class_num, criterion)
+    model = nn.DataParallel(model, device_ids = device_ids)
     model = model.to(device)
     print(model)
 
@@ -89,14 +97,15 @@ def main():
                                 shuffle=False)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    train_losses, val_losses = [], []
+
     for i in range(epoch):
         print(f"epoch: {i}")
         train_loss = train(model, train_dataloader, criterion, optimizer, i)
         val_loss = val(model, test_dataloader, criterion, i)
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
+        writer.add_scalar("train loss", train_loss, i)
+        writer.add_scalar("validation loss", val_loss, i)
     test_acc, test_loss = test(model, test_dataloader, criterion)
+    writer.close()
 
 
 def train(model, dataloader, criterion, optimizer, epoch):
