@@ -13,7 +13,6 @@ RUN pip3 install \
     autopep8 \
     flake8 \
     mlflow \
-    pytorch-lightning \
-    omegaconf
+    pytorch-lightning 
 
 RUN apt-get update && apt-get install -y build-essential git
