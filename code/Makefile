@@ -5,7 +5,7 @@ run_abci:
 	qsub -g gcc50441 ./abci.sh
 
 abci:
-	python train.py --config_file abci.yml
+	./abci.sh
 
 activate:
 	source env/bin/activate

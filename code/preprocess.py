@@ -1,10 +1,10 @@
 import os
 import argparse
-from data.shinra_utils import FileUtils, label_preprocess, wikidata_preprocess
-import pandas as pd
 from transformers import BertTokenizer
 from tqdm import tqdm
 
+from data.shinra_utils import FileUtils, label_preprocess, wikidata_preprocess
+import pandas as pd
 
 def load_arg():
     parser = argparse.ArgumentParser()

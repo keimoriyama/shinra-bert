@@ -21,5 +21,4 @@ module load python/3.7/3.7.13
 
 cd /home/acd14210nv/shinra-bert/code
 
-pip3 install -r requirements.txt
-python3 train.py --debug --data_path /data/ --file_label_name en_ENEW_LIST.json --file_data_name en-trial-wiki-20190121-cirrussearch-content.json.gz	
+python train.py --config_file abci.yml
