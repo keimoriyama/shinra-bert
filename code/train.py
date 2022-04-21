@@ -44,19 +44,13 @@ parser = argparse.ArgumentParser()
 
 
 def main():
-    """
-    parser.add_argument("--data_path")
-    parser.add_argument("--file_data_name")
-    parser.add_argument("--file_label_name")
-    parser.add_argument("--debug", action="store_true")
-    """
     parser.add_argument("--config_file")
     args = parser.parse_args()
     config = OmegaConf.load("./config/" + args.config_file)
     debug = config.debug
     data_path = config.data.data_path
-    file_data_name = config.data.file_label_name
-    file_label_name = config.data.file_data_name
+    file_label_name = config.data.file_label_name
+    file_data_name = config.data.file_data_name
 
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
