@@ -51,6 +51,7 @@ def main():
     data_path = config.data.data_path
     file_label_name = config.data.file_label_name
     file_data_name = config.data.file_data_name
+    batch_size = config.batch_size
 
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
