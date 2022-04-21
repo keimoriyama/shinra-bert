@@ -1,4 +1,4 @@
-train:
+local:
 	python train.py --config_file local.yml
 
 run_abci:

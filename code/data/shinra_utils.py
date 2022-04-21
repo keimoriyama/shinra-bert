@@ -28,6 +28,7 @@ class FileUtils:
 
     def load_shinra_json(self, path: str, limit=False):
         data = []
+        print(path)
         with open(path, "r") as f, \
                 tqdm.tqdm(desc=os.path.basename(path)) as t:
             for line in f:
@@ -35,8 +36,6 @@ class FileUtils:
                     continue
                 file = json.loads(line)
                 data.append(file)
-                if limit and len(data) == self.limit:
-                    break
                 t.update()
         return data
 
