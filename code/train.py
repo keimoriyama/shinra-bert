@@ -51,7 +51,8 @@ def main():
     data_path = config.data.data_path
     file_label_name = config.data.file_label_name
     file_data_name = config.data.file_data_name
-    batch_size = config.batch_size
+    batch_size = config.data.batch_size
+    num_workers = config.data.num_workers
 
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
@@ -65,15 +66,18 @@ def main():
     val_dataset = ShinraDataset(val_data)
     train_dataloader = DataLoader(train_dataset, 
                                     batch_size=batch_size, 
-                                    collate_fn=collate_fn, 
+                                    collate_fn=collate_fn,
+                                    num_workers= num_workers,
                                     shuffle=True)
     val_dataloader = DataLoader(val_dataset, 
                                 batch_size=batch_size, 
                                 collate_fn=collate_fn, 
-                                shuffle=True)
+                                num_workers= num_workers,
+                                shuffle=False)
     test_dataloader = DataLoader(test_dataset, 
                                 batch_size=batch_size, 
                                 collate_fn=collate_fn, 
+                                num_workers= num_workers,
                                 shuffle=False)
     trainer = pl.Trainer(max_epochs=10)
     trainer.fit(model, train_dataloader, val_dataloader)
