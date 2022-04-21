@@ -6,8 +6,12 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import pytorch_lightning as pl
 import argparse
+from tqdm import tqdm
 from omegaconf import OmegaConf
 
+
+device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+print(device)
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
 
@@ -53,12 +57,16 @@ def main():
     file_data_name = config.data.file_data_name
     batch_size = config.data.batch_size
     num_workers = config.data.num_workers
+    epoch = config.train.epoch
 
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
     class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
     model = MyBertSequenceClassification(cfg, class_num, criterion)
+    model = model.to(device)
+    print(model)
+
     train_data, test_data = train_test_split(data)
     test_data, val_data = train_test_split(test_data)
     train_dataset = ShinraDataset(train_data)
@@ -79,12 +87,8 @@ def main():
                                 collate_fn=collate_fn, 
                                 num_workers= num_workers,
                                 shuffle=False)
-    trainer = pl.Trainer(max_epochs=10)
-    trainer.fit(model, train_dataloader, val_dataloader)
-    trainer.test(model, dataloaders=test_dataloader)
-    """
+    
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    epoch = 10
     train_losses, val_losses = [], []
     for i in range(epoch):
         print(f"epoch: {i}")
@@ -92,11 +96,14 @@ def main():
         val_loss = val(model, test_dataloader, criterion, i)
         train_losses.append(train_loss)
         val_losses.append(val_loss)
+    test_acc, test_loss = test(model, test_dataloader, criterion)
 
 
 def train(model, dataloader, criterion, optimizer, epoch):
     losses = []
     for text, label in tqdm(dataloader, desc=f'training epoch {epoch}', total=len(dataloader)):
+        text = text.to(device)
+        label = label.to(device)
         output = model(text)
         loss = criterion(output, label)
         optimizer.zero_grad()
@@ -109,13 +116,24 @@ def train(model, dataloader, criterion, optimizer, epoch):
 def val(model, dataloader, criterion, epoch):
     losses = []
     for text, label in tqdm(dataloader, desc=f"validating epoch {epoch}", total=len(dataloader)):
+        text = text.to(device)
+        label = label.to(device)
         with torch.no_grad():
             output = model(text)
             loss = criterion(output, label)
             losses.append(loss.item())
-    return sum(loss) / len(loss)
-"""
+    return sum(losses) / len(losses)
 
+def test(model, dataloader, criterion):
+    for text, label in tqdm(dataloader, desc=f"testing model", total=len(dataloader)):
+        text = text.to(device)
+        label = label.to(device)
+        with torch.no_grad():
+            output = model(text)
+        loss = criterion(output, label)
+        pred = torch.argmax(output, dim=1)
+        acc = torch.sum(pred == label).item() / len(pred)
+    return acc, loss
 
 if __name__ == '__main__':
     main()

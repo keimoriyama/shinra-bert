@@ -4,7 +4,7 @@ import torch
 import pytorch_lightning as pl
 
 
-class MyBertSequenceClassification(pl.LightningModule):
+class MyBertSequenceClassification(nn.Module):
     def __init__(self, cfg, class_num, criterion) -> None:
         super().__init__()
         self.model = BertModel(cfg)
@@ -18,34 +18,8 @@ class MyBertSequenceClassification(pl.LightningModule):
         out = self.linear(out)
         return out
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-        return optimizer
 
-    def training_step(self, batch):
-        text, label = batch
-        output = self(text)
-        loss = self.criterion(output, label)
-        self.log("train loss", loss.item())
-        return loss
-
-    def validation_step(self, batch, _):
-        text, label = batch
-        # print(batch, sample)
-        output = self(text)
-        with torch.no_grad():
-            loss = self.criterion(output, label)
-        self.log("validation loss", loss.item())
-        return loss
-
-    def test_step(self, batch, _):
-        text, label = batch
-        with torch.no_grad():
-            output = self(text)
-        loss = self.criterion(output, label)
-        pred = torch.argmax(output, dim=1)
-        acc = torch.sum(pred == label).item() / len(pred)
-        self.log_dict({"test loss": loss.item(), "test acc": acc})
+        
 
 
 def main():
