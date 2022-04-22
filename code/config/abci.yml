@@ -4,7 +4,7 @@ data:
   data_path: /data/
   file_label_name: en_ENEW_LIST.json
   file_data_name: en-trial-wiki-20190121-cirrussearch-content.json.gz
-  batch_size: 32
+  batch_size: 16
   num_workers: 4
 train:
   epoch: 10

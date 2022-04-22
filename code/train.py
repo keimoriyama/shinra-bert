@@ -2,6 +2,7 @@ from preprocess import preprocess
 from model import MyBertSequenceClassification
 from transformers import BertConfig, BertTokenizer
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import pytorch_lightning as pl
@@ -10,12 +11,13 @@ from tqdm import tqdm
 from omegaconf import OmegaConf
 from torch.utils.tensorboard import SummaryWriter
 
+
 writer = SummaryWriter(log_dir="./logs")
 
 
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 n_max_gpus = torch.cuda.device_count()
-device_ids = list(range(min(0, n_max_gpus)))
+device_ids = list(range(n_max_gpus))
 print(device)
 print(f"{n_max_gpus} GPUs available")
 
@@ -71,7 +73,10 @@ def main():
     class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
     model = MyBertSequenceClassification(cfg, class_num, criterion)
-    model = nn.DataParallel(model, device_ids = device_ids)
+    # 並列でGPUを使うための設定
+    # rank = xxx
+    # model = model.to(rank)
+    # model = DDP(model,  device_ids=[rank])
     model = model.to(device)
     print(model)
 
@@ -109,6 +114,7 @@ def main():
 
 
 def train(model, dataloader, criterion, optimizer, epoch):
+    model.train()
     losses = []
     for text, label in tqdm(dataloader, desc=f'training epoch {epoch}', total=len(dataloader)):
         text = text.to(device)
@@ -123,6 +129,7 @@ def train(model, dataloader, criterion, optimizer, epoch):
 
 
 def val(model, dataloader, criterion, epoch):
+    model.eval()
     losses = []
     for text, label in tqdm(dataloader, desc=f"validating epoch {epoch}", total=len(dataloader)):
         text = text.to(device)
@@ -134,6 +141,7 @@ def val(model, dataloader, criterion, epoch):
     return sum(losses) / len(losses)
 
 def test(model, dataloader, criterion):
+    model.eval()
     for text, label in tqdm(dataloader, desc=f"testing model", total=len(dataloader)):
         text = text.to(device)
         label = label.to(device)

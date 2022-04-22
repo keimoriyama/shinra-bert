@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#$-l rt_F=1
+#$-l rt_G.small=1
 #$-l h_rt=36:00:00
 #$-j y
 #$-cwd
@@ -10,12 +10,11 @@
 #$-m b
 #$-m e
 #$-v GPU_COMPUTE_MODE=1
-#$-l rt_G.small=1
 
 # 標準出力先
 #$-o logs/stdout.txt
 
-qrsh -g gcc50441 -l rt_G.small=1 -l rt_F=1 -l h_rt=1:00:00 
+# qrsh -g gcc50441 -l rt_G.small=1 -l rt_F=1 -l h_rt=1:00:00 
 
 source /etc/profile.d/modules.sh
 module load cuda/11.0/11.0.3
