@@ -28,6 +28,7 @@ tokenizer = BertTokenizer.from_pretrained(bert_version)
 def tokenize_text(text):
     return tokenizer(text,
                      return_tensors='pt',
+                     max_length=256,
                      padding="max_length",
                      truncation=True)
 
@@ -48,9 +49,20 @@ class ShinraDataset(Dataset):
 def collate_fn(batch):
     texts, labels = list(zip(*batch))
     texts = list(texts)
+    texts = check_type(texts)
     label = torch.tensor(labels)
     tokenized_texts = tokenize_text(texts)
     return tokenized_texts, label
+
+
+def check_type(texts):
+    text_list = []
+    for text in texts:
+        if isinstance(text, str):
+            text_list.append(text)
+        else:
+            text_list.extend(text)
+    return text_list
 
 
 parser = argparse.ArgumentParser()
@@ -85,22 +97,22 @@ def main():
     train_dataset = ShinraDataset(train_data)
     test_dataset = ShinraDataset(test_data)
     val_dataset = ShinraDataset(val_data)
-    train_dataloader = DataLoader(train_dataset, 
-                                    batch_size=batch_size, 
-                                    collate_fn=collate_fn,
-                                    num_workers= num_workers,
-                                    shuffle=True)
-    val_dataloader = DataLoader(val_dataset, 
-                                batch_size=batch_size, 
-                                collate_fn=collate_fn, 
-                                num_workers= num_workers,
+    train_dataloader = DataLoader(train_dataset,
+                                  batch_size=batch_size,
+                                  collate_fn=collate_fn,
+                                  num_workers=num_workers,
+                                  shuffle=True)
+    val_dataloader = DataLoader(val_dataset,
+                                batch_size=batch_size,
+                                collate_fn=collate_fn,
+                                num_workers=num_workers,
                                 shuffle=False)
-    test_dataloader = DataLoader(test_dataset, 
-                                batch_size=batch_size, 
-                                collate_fn=collate_fn, 
-                                num_workers= num_workers,
-                                shuffle=False)
-    
+    test_dataloader = DataLoader(test_dataset,
+                                 batch_size=batch_size,
+                                 collate_fn=collate_fn,
+                                 num_workers=num_workers,
+                                 shuffle=False)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     for i in range(epoch):
@@ -140,6 +152,7 @@ def val(model, dataloader, criterion, epoch):
             losses.append(loss.item())
     return sum(losses) / len(losses)
 
+
 def test(model, dataloader, criterion):
     model.eval()
     for text, label in tqdm(dataloader, desc=f"testing model", total=len(dataloader)):
@@ -151,6 +164,7 @@ def test(model, dataloader, criterion):
         pred = torch.argmax(output, dim=1)
         acc = torch.sum(pred == label).item() / len(pred)
     return acc, loss
+
 
 if __name__ == '__main__':
     main()

@@ -1,3 +1,4 @@
+
 import os
 import argparse
 from transformers import BertTokenizer
@@ -5,6 +6,8 @@ from tqdm import tqdm
 
 from data.shinra_utils import FileUtils, label_preprocess, wikidata_preprocess
 import pandas as pd
+
+
 
 def load_arg():
     parser = argparse.ArgumentParser()
@@ -47,7 +50,7 @@ def read_data(debug, data_path, file_data_name, file_label_name):
 
     # tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
     tokenized_texts = []
-    with tqdm(total=len(wiki_df), desc="tokenizing text") as t:
+    with tqdm(total=len(wiki_df), desc="extracting text") as t:
         for index in wiki_df.index:
             text = wiki_df['text'][index]
             id = wiki_df['id'][index]
