@@ -60,8 +60,11 @@ def check_type(texts):
     for text in texts:
         if isinstance(text, str):
             text_list.append(text)
-        else:
+        elif isinstance(text, list):
             text_list.extend(text)
+        else:
+            print(text)
+            exit()
     return text_list
 
 

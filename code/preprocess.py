@@ -25,22 +25,24 @@ def gen_data(debug, data_path, file_data_name, file_label_name):
     label_path = base + label_path
     wiki_path = base + wiki_path
 
-    # if label_path in os.listdir(dir_path):
     base_path = base + data_path
     label_name = file_label_name
     wiki_name = file_data_name
     files = FileUtils(base_path, label_name, wiki_name)
     labels = files.load_labeldata()
     wikidata = files.load_wikidata(debug)
-    label_df = label_preprocess(labels)
-    label_df.to_csv(label_path, index=False)
-    del label_df, labels
-    wiki_df = wikidata_preprocess(wikidata)
-    wiki_df.to_csv(wiki_path, index=False)
-    del wikidata, wiki_df
-
-    label_df = pd.read_csv(label_path)
-    wiki_df = pd.read_csv(wiki_path)
+    if os.path.isfile(label_path):
+        label_df = pd.read_csv(label_path)
+    else:
+        label_df = label_preprocess(labels)
+        label_df.to_csv(label_path, index=False)
+    # del label_df, labels
+    if os.path.isfile(wiki_path):
+        wiki_df = pd.read_csv(wiki_path)
+    else:
+        wiki_df = wikidata_preprocess(wikidata)
+        wiki_df.to_csv(wiki_path, index=False)
+        # del wikidata, wiki_df
     return label_df, wiki_df
 
 
