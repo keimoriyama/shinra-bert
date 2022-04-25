@@ -69,7 +69,7 @@ def label_preprocess(labels):
 
 
 def wikidata_preprocess(wikidata):
-    df = pd.DataFrame()
+    # df = pd.DataFrame()
     wiki_dict_list = []
     for wiki in tqdm.tqdm(wikidata, desc="extracting wiki data"):
         # print(wiki.keys())
@@ -78,7 +78,7 @@ def wikidata_preprocess(wikidata):
                     "text": wiki['text']}
         wiki_dict_list.append(wikidict)
     wiki_df = pd.DataFrame(wiki_dict_list)
-    df = pd.concat([df, wiki_df])
+    # df = pd.concat([df, wiki_df])
     return df
 # 実装のテスト　
 

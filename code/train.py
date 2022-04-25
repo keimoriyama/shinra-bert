@@ -11,11 +11,15 @@ from tqdm import tqdm
 from omegaconf import OmegaConf
 from torch.utils.tensorboard import SummaryWriter
 
+from accelerate import Accelerator
+
+accelarator = Accelerator()
 
 writer = SummaryWriter(log_dir="./logs")
 
 
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+# device = accelarator.device()
 n_max_gpus = torch.cuda.device_count()
 device_ids = list(range(n_max_gpus))
 print(device)
@@ -49,7 +53,7 @@ class ShinraDataset(Dataset):
 def collate_fn(batch):
     texts, labels = list(zip(*batch))
     texts = list(texts)
-    texts = check_type(texts)
+    # texts = check_type(texts)
     label = torch.tensor(labels)
     tokenized_texts = tokenize_text(texts)
     return tokenized_texts, label
@@ -58,14 +62,13 @@ def collate_fn(batch):
 def check_type(texts):
     text_list = []
     for text in texts:
-        if isinstance(text, str):
-            text_list.append(text)
-        elif isinstance(text, list):
-            text_list.extend(text)
+        t = text[0]
+        if isinstance(t, str):
+            pass
         else:
-            print(text)
+            print(t, type(t))
             exit()
-    return text_list
+    # return text_list
 
 
 parser = argparse.ArgumentParser()
@@ -85,6 +88,13 @@ def main():
 
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
+    for d in tqdm(data, desc="checking data type"):
+        text = d[0]
+        if not isinstance(text, str):
+            print(text)
+            data.remove(text)
+    check_type(data)
+
     class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
     model = MyBertSequenceClassification(cfg, class_num, criterion)
@@ -118,6 +128,9 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
+    model, optimizer, train_dataloader, val_dataloader, test_dataloader = accelarator.prepare(model, optimizer, train_dataloader, val_dataloader, test_dataloader)
+
+    accelarator.print()
     for i in range(epoch):
         print(f"epoch: {i}")
         train_loss = train(model, train_dataloader, criterion, optimizer, i)
@@ -132,12 +145,13 @@ def train(model, dataloader, criterion, optimizer, epoch):
     model.train()
     losses = []
     for text, label in tqdm(dataloader, desc=f'training epoch {epoch}', total=len(dataloader)):
-        text = text.to(device)
-        label = label.to(device)
+        # text = text.to(device)
+        # label = label.to(device)
         output = model(text)
         loss = criterion(output, label)
         optimizer.zero_grad()
-        loss.backward()
+        # loss.backward()
+        accelarator.backward(loss)
         optimizer.step()
         losses.append(loss.item())
     return sum(losses) / len(losses)
@@ -147,20 +161,20 @@ def val(model, dataloader, criterion, epoch):
     model.eval()
     losses = []
     for text, label in tqdm(dataloader, desc=f"validating epoch {epoch}", total=len(dataloader)):
-        text = text.to(device)
-        label = label.to(device)
+        # text = text.to(device)
+        # label = label.to(device)
         with torch.no_grad():
             output = model(text)
             loss = criterion(output, label)
-            losses.append(loss.item())
+        losses.append(loss.item())
     return sum(losses) / len(losses)
 
 
 def test(model, dataloader, criterion):
     model.eval()
     for text, label in tqdm(dataloader, desc=f"testing model", total=len(dataloader)):
-        text = text.to(device)
-        label = label.to(device)
+        # text = text.to(device)
+        # label = label.to(device)
         with torch.no_grad():
             output = model(text)
         loss = criterion(output, label)
