@@ -165,7 +165,9 @@ def val(model, dataloader, criterion, epoch):
         # label = label.to(device)
         with torch.no_grad():
             output = model(text)
-            loss = criterion(output, label)
+            output = accelarator.gather(output)
+            label = accelarator.gather(label)
+        loss = criterion(output, label)
         losses.append(loss.item())
     return sum(losses) / len(losses)
 
