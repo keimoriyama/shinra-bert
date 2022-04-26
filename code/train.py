@@ -9,22 +9,23 @@ import pytorch_lightning as pl
 import argparse
 from tqdm import tqdm
 from omegaconf import OmegaConf
-from torch.utils.tensorboard import SummaryWriter
+
+import mlflow
+from mlflow.tracking import MlflowClient
 
 from accelerate import Accelerator
 
-accelarator = Accelerator()
-
-writer = SummaryWriter(log_dir="./logs")
+accelerator = Accelerator()
 
 
-device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-# device = accelarator.device()
+# device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+device = accelerator.device
 n_max_gpus = torch.cuda.device_count()
 device_ids = list(range(n_max_gpus))
 print(device)
 print(f"{n_max_gpus} GPUs available")
 
+mlflow.start_run()
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
 
@@ -86,14 +87,12 @@ def main():
     num_workers = config.data.num_workers
     epoch = config.train.epoch
 
+    mlflow.log_param("batch size", batch_size)
+    mlflow.log_param("num workers", num_workers)
+    mlflow.log_param("epochs", epoch)
+
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
-    for d in tqdm(data, desc="checking data type"):
-        text = d[0]
-        if not isinstance(text, str):
-            print(text)
-            data.remove(text)
-    check_type(data)
 
     class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
@@ -128,17 +127,19 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
-    model, optimizer, train_dataloader, val_dataloader, test_dataloader = accelarator.prepare(model, optimizer, train_dataloader, val_dataloader, test_dataloader)
+    model, optimizer, train_dataloader, val_dataloader, test_dataloader = accelerator.prepare(model, optimizer, train_dataloader, val_dataloader, test_dataloader)
 
-    accelarator.print()
-    for i in range(epoch):
+    accelerator.print()
+    for i in range(1, epoch+1):
         print(f"epoch: {i}")
         train_loss = train(model, train_dataloader, criterion, optimizer, i)
         val_loss = val(model, test_dataloader, criterion, i)
-        writer.add_scalar("train loss", train_loss, i)
-        writer.add_scalar("validation loss", val_loss, i)
-    test_acc, test_loss = test(model, test_dataloader, criterion)
-    writer.close()
+        mlflow.log_metric("train loss", train_loss, step=i)
+        mlflow.log_metric("validation loss", val_loss, step=i)
+        test_acc, test_loss = test(model, test_dataloader, criterion)
+        mlflow.log_metric("test acc", test_acc, step =i)
+
+    mlflow.end_run()
 
 
 def train(model, dataloader, criterion, optimizer, epoch):
@@ -151,7 +152,7 @@ def train(model, dataloader, criterion, optimizer, epoch):
         loss = criterion(output, label)
         optimizer.zero_grad()
         # loss.backward()
-        accelarator.backward(loss)
+        accelerator.backward(loss)
         optimizer.step()
         losses.append(loss.item())
     return sum(losses) / len(losses)
@@ -165,8 +166,8 @@ def val(model, dataloader, criterion, epoch):
         # label = label.to(device)
         with torch.no_grad():
             output = model(text)
-            output = accelarator.gather(output)
-            label = accelarator.gather(label)
+            output = accelerator.gather(output)
+            label = accelerator.gather(label)
         loss = criterion(output, label)
         losses.append(loss.item())
     return sum(losses) / len(losses)
