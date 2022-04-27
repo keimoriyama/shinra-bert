@@ -20,7 +20,6 @@ device_ids = list(range(n_max_gpus))
 print(device)
 print(f"{n_max_gpus} GPUs available")
 
-mlflow.start_run()
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
 
@@ -59,6 +58,7 @@ def main():
     parser.add_argument("--config_file")
     args = parser.parse_args()
     config = OmegaConf.load("./config/" + args.config_file)
+
     debug = config.debug
     data_path = config.data.data_path
     file_label_name = config.data.file_label_name
@@ -67,6 +67,11 @@ def main():
     num_workers = config.data.num_workers
     epoch = config.train.epoch
     lr = config.optim.learning_rate
+
+    mlflow.start_run()
+
+    # MLflowのエンティティを全てオートロギング
+    mlflow.pytorch.autolog()
 
     mlflow.log_param("batch size", batch_size)
     mlflow.log_param("num workers", num_workers)

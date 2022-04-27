@@ -1,0 +1,15 @@
+artifact_uri: file:///home/acd14210nv/shinra-bert/code/mlruns/0/f5bfcf2d86944874972d5db729738028/artifacts
+end_time: 1651034609403
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+name: ''
+run_id: f5bfcf2d86944874972d5db729738028
+run_uuid: f5bfcf2d86944874972d5db729738028
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1650961747690
+status: 3
+tags: []
+user_id: acd14210nv
