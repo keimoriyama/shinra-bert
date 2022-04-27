@@ -5,21 +5,16 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
-import pytorch_lightning as pl
 import argparse
 from tqdm import tqdm
 from omegaconf import OmegaConf
 
+from pytorch_lightning import Trainer, seed_everything
+
 import mlflow
 from mlflow.tracking import MlflowClient
 
-from accelerate import Accelerator
-
-accelerator = Accelerator()
-
-
-# device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-device = accelerator.device
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 n_max_gpus = torch.cuda.device_count()
 device_ids = list(range(n_max_gpus))
 print(device)
@@ -28,7 +23,6 @@ print(f"{n_max_gpus} GPUs available")
 mlflow.start_run()
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
-
 
 def tokenize_text(text):
     return tokenizer(text,
@@ -54,23 +48,9 @@ class ShinraDataset(Dataset):
 def collate_fn(batch):
     texts, labels = list(zip(*batch))
     texts = list(texts)
-    # texts = check_type(texts)
     label = torch.tensor(labels)
-    tokenized_texts = tokenize_text(texts)
-    return tokenized_texts, label
-
-
-def check_type(texts):
-    text_list = []
-    for text in texts:
-        t = text[0]
-        if isinstance(t, str):
-            pass
-        else:
-            print(t, type(t))
-            exit()
-    # return text_list
-
+    texts = tokenize_text(texts)
+    return texts, label
 
 parser = argparse.ArgumentParser()
 
@@ -86,29 +66,25 @@ def main():
     batch_size = config.data.batch_size
     num_workers = config.data.num_workers
     epoch = config.train.epoch
+    lr = config.optim.learning_rate
 
     mlflow.log_param("batch size", batch_size)
     mlflow.log_param("num workers", num_workers)
+    mlflow.log_param("learning rate", lr)
     mlflow.log_param("epochs", epoch)
 
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
 
-    class_num = max(label_index_dict.keys())
+    class_num = max(label_index_dict.keys()) + 1
     criterion = torch.nn.CrossEntropyLoss()
-    model = MyBertSequenceClassification(cfg, class_num, criterion)
-    # 並列でGPUを使うための設定
-    # rank = xxx
-    # model = model.to(rank)
-    # model = DDP(model,  device_ids=[rank])
-    model = model.to(device)
-    print(model)
-
+    
     train_data, test_data = train_test_split(data)
     test_data, val_data = train_test_split(test_data)
     train_dataset = ShinraDataset(train_data)
     test_dataset = ShinraDataset(test_data)
     val_dataset = ShinraDataset(val_data)
+    
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=batch_size,
                                   collate_fn=collate_fn,
@@ -125,11 +101,12 @@ def main():
                                  num_workers=num_workers,
                                  shuffle=False)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-
-    model, optimizer, train_dataloader, val_dataloader, test_dataloader = accelerator.prepare(model, optimizer, train_dataloader, val_dataloader, test_dataloader)
-
-    accelerator.print()
+    
+    model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
+    trainer = Trainer(max_epochs = epoch, accelerator="gpu", devices = device_ids)
+    trainer.fit(model, train_dataloader, val_dataloader)
+    trainer.test(model, test_dataloader)
+    """
     for i in range(1, epoch+1):
         print(f"epoch: {i}")
         train_loss = train(model, train_dataloader, criterion, optimizer, i)
@@ -138,7 +115,7 @@ def main():
         mlflow.log_metric("validation loss", val_loss, step=i)
         test_acc, test_loss = test(model, test_dataloader, criterion)
         mlflow.log_metric("test acc", test_acc, step =i)
-
+    """
     mlflow.end_run()
 
 
@@ -146,13 +123,13 @@ def train(model, dataloader, criterion, optimizer, epoch):
     model.train()
     losses = []
     for text, label in tqdm(dataloader, desc=f'training epoch {epoch}', total=len(dataloader)):
-        # text = text.to(device)
-        # label = label.to(device)
+        text = text.to(device)
+        label = label.to(device)
         output = model(text)
         loss = criterion(output, label)
         optimizer.zero_grad()
-        # loss.backward()
-        accelerator.backward(loss)
+        loss.backward()
+        # accelerator.backward(loss)
         optimizer.step()
         losses.append(loss.item())
     return sum(losses) / len(losses)
@@ -162,13 +139,12 @@ def val(model, dataloader, criterion, epoch):
     model.eval()
     losses = []
     for text, label in tqdm(dataloader, desc=f"validating epoch {epoch}", total=len(dataloader)):
-        # text = text.to(device)
-        # label = label.to(device)
+        text = text.to(device)
+        label = label.to(device)
+        # print(text, label)
         with torch.no_grad():
             output = model(text)
-            output = accelerator.gather(output)
-            label = accelerator.gather(label)
-        loss = criterion(output, label)
+            loss = criterion(output, label)
         losses.append(loss.item())
     return sum(losses) / len(losses)
 
@@ -176,15 +152,15 @@ def val(model, dataloader, criterion, epoch):
 def test(model, dataloader, criterion):
     model.eval()
     for text, label in tqdm(dataloader, desc=f"testing model", total=len(dataloader)):
-        # text = text.to(device)
-        # label = label.to(device)
+        text = text.to(device)
+        label = label.to(device)
         with torch.no_grad():
             output = model(text)
         loss = criterion(output, label)
         pred = torch.argmax(output, dim=1)
         acc = torch.sum(pred == label).item() / len(pred)
     return acc, loss
-
+    
 
 if __name__ == '__main__':
     main()

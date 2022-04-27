@@ -4,20 +4,47 @@ import torch
 import pytorch_lightning as pl
 
 
-class MyBertSequenceClassification(nn.Module):
-    def __init__(self, cfg, class_num, criterion) -> None:
+class MyBertSequenceClassification(pl.LightningModule):
+    def __init__(self, cfg, class_num, criterion, lr) -> None:
         super().__init__()
         self.model = BertModel(cfg)
         self.in_features = self.model.pooler.dense.out_features
         self.out_features = class_num
         self.linear = nn.Linear(self.in_features, self.out_features)
         self.criterion = criterion
+        self.lr = lr
 
     def forward(self, x):
         out = self.model(**x)[1]
         out = self.linear(out)
         return out
+    
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        return optimizer
+    
+    def training_step(self, batch, _):
+        text, label = batch
+        output = self(text)
+        loss = self.criterion(output, label)
+        self.log("train loss", loss)
+        return loss
 
+    def validation_step(self, batch, _):
+        text, label = batch
+        output = self(text)
+        loss = self.criterion(output, label)
+        self.log("validation loss", loss)
+    
+    def test_step(self, batch, _):
+        text,label = batch
+        output = self(text)
+        loss = self.criterion(output, label)
+        pred = torch.argmax(output, dim=1)
+        acc = torch.sum(pred == label).item() / len(pred)
+        self.log("testing loss", loss)
+        self.log("accuracy", acc)
+        
 
         
 
