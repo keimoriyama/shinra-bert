@@ -4,3 +4,4 @@
 *.pyc
 *.gz
 .DS_Store
+code/logs/stdout.txt

@@ -27,14 +27,14 @@ class MyBertSequenceClassification(pl.LightningModule):
         text, label = batch
         output = self(text)
         loss = self.criterion(output, label)
-        self.log("train loss", loss)
+        self.log("train loss", loss, sync_dist=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, _):
         text, label = batch
         output = self(text)
         loss = self.criterion(output, label)
-        self.log("validation loss", loss)
+        self.log("validation loss", loss, sync_dist=True, on_epoch=True)
     
     def test_step(self, batch, _):
         text,label = batch
@@ -42,8 +42,8 @@ class MyBertSequenceClassification(pl.LightningModule):
         loss = self.criterion(output, label)
         pred = torch.argmax(output, dim=1)
         acc = torch.sum(pred == label).item() / len(pred)
-        self.log("testing loss", loss)
-        self.log("accuracy", acc)
+        self.log("testing loss", loss, sync_dist=True, on_epoch=True)
+        self.log("accuracy", acc,sync_dist=True, on_epoch=True)
         
 
         

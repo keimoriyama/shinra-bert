@@ -1,12 +1,13 @@
 name: Test
 debug: False
+exp_name: train first bert
 data:
   data_path: /data/
   file_label_name: en_ENEW_LIST.json
   file_data_name: en-trial-wiki-20190121-cirrussearch-content.json.gz
-  batch_size: 8
+  batch_size: 32
   num_workers: 4
 train:
-  epoch: 10
+  epoch: 100
 optim:
   learning_rate: 0.001

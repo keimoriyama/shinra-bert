@@ -10,15 +10,13 @@ from tqdm import tqdm
 from omegaconf import OmegaConf
 
 from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.loggers import MLFlowLogger
 
-import mlflow
-from mlflow.tracking import MlflowClient
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-n_max_gpus = torch.cuda.device_count()
-device_ids = list(range(n_max_gpus))
-print(device)
-print(f"{n_max_gpus} GPUs available")
+num_devices = torch.cuda.device_count()
+device_ids = list(range(num_devices))
+
+print(f"{num_devices} GPUs available")
 
 bert_version = "bert-base-cased"
 tokenizer = BertTokenizer.from_pretrained(bert_version)
@@ -41,7 +39,8 @@ class ShinraDataset(Dataset):
         return text, label
 
     def __len__(self):
-        return len(self.data)
+        # return len(self.data)
+        return 32*4
 
 
 def collate_fn(batch):
@@ -67,17 +66,11 @@ def main():
     num_workers = config.data.num_workers
     epoch = config.train.epoch
     lr = config.optim.learning_rate
+    exp_name = config.exp_name
 
-    mlflow.start_run()
-
-    # MLflowのエンティティを全てオートロギング
-    mlflow.pytorch.autolog()
-
-    mlflow.log_param("batch size", batch_size)
-    mlflow.log_param("num workers", num_workers)
-    mlflow.log_param("learning rate", lr)
-    mlflow.log_param("epochs", epoch)
-
+    mlf_logger = MLFlowLogger(experiment_name = "test")
+    mlf_logger.log_hyperparams(config.data)
+    mlf_logger.log_hyperparams(config.train)
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
 
@@ -108,63 +101,13 @@ def main():
 
     
     model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
-    trainer = Trainer(max_epochs = epoch, accelerator="gpu", devices = device_ids)
+    trainer = Trainer(max_epochs = epoch,
+                        accelerator="gpu", 
+                        devices = num_devices, 
+                        logger = mlf_logger
+                        )
     trainer.fit(model, train_dataloader, val_dataloader)
     trainer.test(model, test_dataloader)
-    """
-    for i in range(1, epoch+1):
-        print(f"epoch: {i}")
-        train_loss = train(model, train_dataloader, criterion, optimizer, i)
-        val_loss = val(model, test_dataloader, criterion, i)
-        mlflow.log_metric("train loss", train_loss, step=i)
-        mlflow.log_metric("validation loss", val_loss, step=i)
-        test_acc, test_loss = test(model, test_dataloader, criterion)
-        mlflow.log_metric("test acc", test_acc, step =i)
-    """
-    mlflow.end_run()
-
-
-def train(model, dataloader, criterion, optimizer, epoch):
-    model.train()
-    losses = []
-    for text, label in tqdm(dataloader, desc=f'training epoch {epoch}', total=len(dataloader)):
-        text = text.to(device)
-        label = label.to(device)
-        output = model(text)
-        loss = criterion(output, label)
-        optimizer.zero_grad()
-        loss.backward()
-        # accelerator.backward(loss)
-        optimizer.step()
-        losses.append(loss.item())
-    return sum(losses) / len(losses)
-
-
-def val(model, dataloader, criterion, epoch):
-    model.eval()
-    losses = []
-    for text, label in tqdm(dataloader, desc=f"validating epoch {epoch}", total=len(dataloader)):
-        text = text.to(device)
-        label = label.to(device)
-        # print(text, label)
-        with torch.no_grad():
-            output = model(text)
-            loss = criterion(output, label)
-        losses.append(loss.item())
-    return sum(losses) / len(losses)
-
-
-def test(model, dataloader, criterion):
-    model.eval()
-    for text, label in tqdm(dataloader, desc=f"testing model", total=len(dataloader)):
-        text = text.to(device)
-        label = label.to(device)
-        with torch.no_grad():
-            output = model(text)
-        loss = criterion(output, label)
-        pred = torch.argmax(output, dim=1)
-        acc = torch.sum(pred == label).item() / len(pred)
-    return acc, loss
     
 
 if __name__ == '__main__':
