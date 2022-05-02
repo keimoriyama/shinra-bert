@@ -54,6 +54,7 @@ parser = argparse.ArgumentParser()
 
 
 def main():
+    seed_everything()
     parser.add_argument("--config_file")
     args = parser.parse_args()
     config = OmegaConf.load("./config/" + args.config_file)
