@@ -2,6 +2,7 @@ from transformers import BertModel, BertConfig, BertTokenizer
 import torch.nn as nn
 import torch
 import pytorch_lightning as pl
+from sklearn.metrics import f1_score
 
 
 class MyBertSequenceClassification(pl.LightningModule):
@@ -27,14 +28,15 @@ class MyBertSequenceClassification(pl.LightningModule):
         text, label = batch
         output = self(text)
         loss = self.criterion(output, label)
-        self.log("train loss", loss, sync_dist=True, on_epoch=True)
+        self.log("train loss", loss, prog_bar=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, _):
         text, label = batch
         output = self(text)
         loss = self.criterion(output, label)
-        self.log("validation loss", loss, sync_dist=True, on_epoch=True)
+        self.log("validation loss", loss, prog_bar=True, on_epoch=True)
+        return loss
     
     def test_step(self, batch, _):
         text,label = batch
@@ -42,26 +44,18 @@ class MyBertSequenceClassification(pl.LightningModule):
         loss = self.criterion(output, label)
         pred = torch.argmax(output, dim=1)
         acc = torch.sum(pred == label).item() / len(pred)
-        self.log("testing loss", loss, sync_dist=True, on_epoch=True)
-        self.log("accuracy", acc,sync_dist=True, on_epoch=True)
+        label = label.to('cpu').detach().numpy().copy()
+        pred = pred.to('cpu').detach().numpy().copy()
+        microf1 = f1_score(label, pred, average='micro')
+        self.log("testing loss", loss,prog_bar=True, on_epoch=True)
+        self.log("accuracy", acc,prog_bar=True, on_epoch=True)
+        self.log("micro f1", microf1, prog_bar = True, on_epoch=True)
         
-
-        
-
-
 def main():
-    bert_version = "bert-base-cased"
-    cfg = BertConfig.from_pretrained(bert_version)
-    bert = BertModel.from_pretrained(bert_version)
-    class_num = 10
-    model = MyBertSequenceClassification(bert, class_num)
-    print(model)
-    tokenizer = BertTokenizer.from_pretrained(bert_version)
-    text = ["I have a pen", "I like a cat"]
-    text = tokenizer(text, return_tensors="pt")
-    print(text)
-    loss = model(text)
-    print("loss", loss.size())
+    y_true = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+    y_pred = [0, 1, 1, 1, 1, 0, 0, 0, 1, 1]
+    print(f1_score(y_true, y_pred, average = "micro"))
+
 
 
 if __name__ == '__main__':

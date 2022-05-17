@@ -24,7 +24,7 @@ tokenizer = BertTokenizer.from_pretrained(bert_version)
 def tokenize_text(text):
     return tokenizer(text,
                      return_tensors='pt',
-                     max_length=256,
+                     max_length=512,
                      padding="max_length",
                      truncation=True)
 
@@ -40,7 +40,7 @@ class ShinraDataset(Dataset):
 
     def __len__(self):
         # return len(self.data)
-        return 32*4
+        return 16*4
 
 
 def collate_fn(batch):
@@ -54,6 +54,7 @@ parser = argparse.ArgumentParser()
 
 
 def main():
+    seed_everything(10)
     parser.add_argument("--config_file")
     args = parser.parse_args()
     config = OmegaConf.load("./config/" + args.config_file)
@@ -68,7 +69,7 @@ def main():
     lr = config.optim.learning_rate
     exp_name = config.exp_name
 
-    mlf_logger = MLFlowLogger(experiment_name = "test")
+    mlf_logger = MLFlowLogger(experiment_name = exp_name)
     mlf_logger.log_hyperparams(config.data)
     mlf_logger.log_hyperparams(config.train)
     cfg = BertConfig.from_pretrained(bert_version)
