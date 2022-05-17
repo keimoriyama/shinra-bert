@@ -33,9 +33,10 @@ class MyBertSequenceClassification(pl.LightningModule):
         return loss
 
     def training_epoch_end(self, train_loss):
+        # ipdb.set_trace()
         train_loss = [i['loss'].item() for i in train_loss]
         loss = sum(train_loss)/len(train_loss)
-        self.log("train loss", loss)
+        self.logger.log_metrics(metrics = {"train loss": loss}, step = self.current_epoch)
 
     def validation_step(self, batch, _):
         text, label = batch
@@ -48,7 +49,7 @@ class MyBertSequenceClassification(pl.LightningModule):
         #ipdb.set_trace()
         val_loss = [i.item() for i in val_loss]
         loss = sum(val_loss)/len(val_loss)
-        self.log("validation loss", loss)
+        self.logger.log_metrics(metrics = {"validation loss": loss}, step = self.current_epoch)
     
     def test_step(self, batch, _):
         text,label = batch
