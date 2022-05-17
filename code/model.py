@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch
 import pytorch_lightning as pl
 from sklearn.metrics import f1_score
+import ipdb
 
 
 class MyBertSequenceClassification(pl.LightningModule):
@@ -28,15 +29,26 @@ class MyBertSequenceClassification(pl.LightningModule):
         text, label = batch
         output = self(text)
         loss = self.criterion(output, label)
-        self.log("train loss", loss, prog_bar=True, on_epoch=True)
+        # self.log("train loss", loss, prog_bar=True, on_epoch=True)
         return loss
+
+    def training_epoch_end(self, train_loss):
+        train_loss = [i['loss'].item() for i in train_loss]
+        loss = sum(train_loss)/len(train_loss)
+        self.log("train loss", loss)
 
     def validation_step(self, batch, _):
         text, label = batch
         output = self(text)
         loss = self.criterion(output, label)
-        self.log("validation loss", loss, prog_bar=True, on_epoch=True)
+        # self.log("validation loss", loss, prog_bar=True, on_epoch=True)
         return loss
+
+    def validation_epoch_end(self, val_loss):
+        #ipdb.set_trace()
+        val_loss = [i.item() for i in val_loss]
+        loss = sum(val_loss)/len(val_loss)
+        self.log("validation loss", loss)
     
     def test_step(self, batch, _):
         text,label = batch
