@@ -39,8 +39,8 @@ class ShinraDataset(Dataset):
         return text, label
 
     def __len__(self):
-        # return len(self.data)
-        return 16*4
+        return len(self.data)
+        # return 16*4
 
 
 def collate_fn(batch):
@@ -88,16 +88,19 @@ def main():
                                   batch_size=batch_size,
                                   collate_fn=collate_fn,
                                   num_workers=num_workers,
+                                  persistent_workers = True, 
                                   shuffle=True)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=batch_size,
                                 collate_fn=collate_fn,
                                 num_workers=num_workers,
+                                persistent_workers = True,
                                 shuffle=False)
     test_dataloader = DataLoader(test_dataset,
                                  batch_size=batch_size,
                                  collate_fn=collate_fn,
                                  num_workers=num_workers,
+                                 persistent_workers = True,
                                  shuffle=False)
 
     
@@ -105,6 +108,7 @@ def main():
     trainer = Trainer(max_epochs = epoch,
                         accelerator="gpu", 
                         devices = num_devices, 
+                        strategy="ddp_find_unused_parameters_false",
                         logger = mlf_logger
                         )
     trainer.fit(model, train_dataloader, val_dataloader)
