@@ -1,25 +1,22 @@
-
 import os
-import argparse
 from transformers import BertTokenizer
 from tqdm import tqdm
 
 from data.shinra_utils import FileUtils, label_preprocess, wikidata_preprocess
 import pandas as pd
 
+class Tokenizer():
+    def __init__(self, bert_version):
+        self.tokenizer = BertTokenizer.from_pretrained(bert_version)
 
-
-def load_arg():
-    parser = argparse.ArgumentParser()
-    return parser.parse_args()
+    def tokenize(self, text):
+        return self.tokenizer.tokenize(text)
 
 
 def gen_data(debug, data_path, file_data_name, file_label_name):
     label_path = "/data/csv/labels.csv"
     wiki_path = "/data/csv/wiki.csv"
-    cwd = os.getcwd()
     base = "."
-    dir_path = base + "/data/csv/"
     label_path = base + label_path
     wiki_path = base + wiki_path
 
@@ -44,20 +41,23 @@ def gen_data(debug, data_path, file_data_name, file_label_name):
     return label_df, wiki_df
 
 
-def read_data(debug, data_path, file_data_name, file_label_name):
+def read_data(debug, data_path, file_data_name, file_label_name, tokenizer):
     label_df, wiki_df = gen_data(debug, data_path, file_data_name,
                                  file_label_name)
 
-    # tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
     tokenized_texts = []
+    if debug:
+        wiki_df = wiki_df[:5]
     with tqdm(total=len(wiki_df), desc="extracting text") as t:
         for index in wiki_df.index:
             text = wiki_df['text'][index]
+            tokenized_text = tokenizer.tokenize(text)
             id = wiki_df['id'][index]
-            pair = {"id": id, "text": text}
+            pair = {"id": id, "text": tokenized_text}
             tokenized_texts.append(pair)
             t.update(1)
     wiki_data = pd.DataFrame(tokenized_texts)
+    
     label_df.drop_duplicates(subset="pageid")
     labels = label_df[~label_df.duplicated(
         subset='ENE_name')].reset_index().drop(
@@ -93,15 +93,16 @@ def make_label_index_pair(df):
     return label_dict
 
 
-def preprocess(debug, data_path, file_data_name, file_label_name):
-    df, labels = read_data(debug, data_path, file_data_name, file_label_name)
+def preprocess(debug, data_path, file_data_name, file_label_name, bert_version):
+    tokenizer = Tokenizer(bert_version=bert_version)
+    df, labels = read_data(debug, data_path, file_data_name, file_label_name, tokenizer)
     dataset = make_input(df)
     label_dict = make_label_index_pair(labels)
     return dataset, label_dict
 
 
 def main():
-    preprocess()
+    preprocess(True, "/data/", "en_ENEW_LIST.json", "en-trial-wiki-20190121-cirrussearch-content.json.gz", "bert-base-cased")
 
 
 if __name__ == "__main__":
