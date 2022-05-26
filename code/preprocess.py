@@ -1,4 +1,5 @@
 import os
+from posixpath import split
 from transformers import BertTokenizer
 from tqdm import tqdm
 
@@ -11,6 +12,11 @@ class Tokenizer():
 
     def tokenize(self, text):
         return self.tokenizer.tokenize(text)
+    
+    def decode(self, text):
+        ids = self.tokenizer.convert_tokens_to_ids(text)
+        return self.tokenizer.decode(ids)
+
 
 
 def gen_data(debug, data_path, file_data_name, file_label_name):
@@ -41,10 +47,12 @@ def gen_data(debug, data_path, file_data_name, file_label_name):
     return label_df, wiki_df
 
 
-def read_data(debug, data_path, file_data_name, file_label_name, tokenizer):
-    label_df, wiki_df = gen_data(debug, data_path, file_data_name,
-                                 file_label_name)
+def split_list(target, max_len):
+    res = [target[i:i+max_len] for i in range(0, len(target), max_len)]
+    return res
 
+def read_data(debug, data_path, file_data_name, file_label_name, tokenizer,max_len=512):
+    label_df, wiki_df = gen_data(debug, data_path, file_data_name,file_label_name)
     tokenized_texts = []
     if debug:
         wiki_df = wiki_df[:5]
@@ -52,9 +60,14 @@ def read_data(debug, data_path, file_data_name, file_label_name, tokenizer):
         for index in wiki_df.index:
             text = wiki_df['text'][index]
             tokenized_text = tokenizer.tokenize(text)
+            tokenized_texts_list = split_list(tokenized_text, max_len)
             id = wiki_df['id'][index]
-            pair = {"id": id, "text": tokenized_text}
-            tokenized_texts.append(pair)
+            for text in tokenized_texts_list:
+                pretokenized_text = tokenizer.decode(text)
+                import ipdb; ipdb.set_trace()
+
+                pair = {"id": id, "text": pretokenized_text}
+                tokenized_texts.append(pair)
             t.update(1)
     wiki_data = pd.DataFrame(tokenized_texts)
     
@@ -71,7 +84,6 @@ def read_data(debug, data_path, file_data_name, file_label_name, tokenizer):
 
     df = df.drop(columns=["pageid", "id", "ENE_id"])
     return df, labels
-
 
 def make_input(df):
     df = df.filter(items=["text", "label"])

@@ -23,10 +23,10 @@ tokenizer = BertTokenizer.from_pretrained(bert_version)
 
 def tokenize_text(text):
     return tokenizer(text,
-                     return_tensors='pt',
-                     max_length=512,
-                     padding="max_length",
-                     truncation=True)
+                    return_tensors='pt',
+                    # padding='max_length',
+                    # truncation = True
+                    )
 
 
 class ShinraDataset(Dataset):
@@ -40,12 +40,12 @@ class ShinraDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-        # return 16*4
 
 
 def collate_fn(batch):
     texts, labels = list(zip(*batch))
     texts = list(texts)
+    # print(texts)
     label = torch.tensor(labels)
     texts = tokenize_text(texts)
     return texts, label
@@ -64,20 +64,20 @@ def main():
     file_label_name = config.data.file_label_name
     file_data_name = config.data.file_data_name
     batch_size = config.data.batch_size
+    
     num_workers = config.data.num_workers
     epoch = config.train.epoch
     lr = config.optim.learning_rate
     exp_name = config.exp_name
-
-    mlf_logger = MLFlowLogger(experiment_name = exp_name)
-    mlf_logger.log_hyperparams(config.data)
-    mlf_logger.log_hyperparams(config.train)
+    if not debug:
+        mlf_logger = MLFlowLogger(experiment_name = exp_name)
+        mlf_logger.log_hyperparams(config.data)
+        mlf_logger.log_hyperparams(config.train)
     cfg = BertConfig.from_pretrained(bert_version)
-    data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name)
-
-    class_num = max(label_index_dict.keys()) + 1
+    data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name,bert_version)
+    class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
-    
+    # import ipdb;ipdb.set_trace()
     train_data, test_data = train_test_split(data)
     test_data, val_data = train_test_split(test_data)
     train_dataset = ShinraDataset(train_data)
@@ -103,16 +103,19 @@ def main():
                                  persistent_workers = True,
                                  shuffle=False)
 
-    
     model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
-    trainer = Trainer(max_epochs = epoch,
-                        accelerator="gpu", 
-                        devices = num_devices, 
-                        strategy="ddp_find_unused_parameters_false",
-                        logger = mlf_logger
-                        )
-    trainer.fit(model, train_dataloader, val_dataloader)
-    trainer.test(model, test_dataloader)
+    if debug:
+        trainer = Trainer(max_epochs = 1)
+        trainer.fit(model, train_dataloader)
+    else:
+        trainer = Trainer(max_epochs = epoch,
+                            accelerator="gpu", 
+                            devices = num_devices, 
+                            strategy="ddp_find_unused_parameters_false",
+                            logger = mlf_logger
+                            )
+        trainer.fit(model, train_dataloader, val_dataloader)
+        trainer.test(model, test_dataloader)
     
 
 if __name__ == '__main__':

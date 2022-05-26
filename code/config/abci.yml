@@ -1,5 +1,5 @@
 name: Test
-debug: False
+debug: True
 exp_name: bert test code
 data:
   data_path: /data/
