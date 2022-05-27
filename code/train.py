@@ -61,9 +61,9 @@ def main():
     data_path = config.data.data_path
     file_label_name = config.data.file_label_name
     file_data_name = config.data.file_data_name
-    batch_size = config.data.batch_size * num_devices
+    batch_size = config.data.batch_size
     data_type = config.data.data_type 
-    num_workers = os.cpu_count()/ num_devices
+    num_workers = int(os.cpu_count()/ num_devices)
     epoch = config.train.epoch
     lr = config.optim.learning_rate
     exp_name = config.exp_name
