@@ -6,7 +6,6 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import argparse
-from tqdm import tqdm
 from omegaconf import OmegaConf
 import os
 
@@ -85,7 +84,7 @@ def main():
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=batch_size,
                                   collate_fn=collate_fn,
-                                  num_workers=num_workers,
+                                  num_workers=num_wokers,
                                   persistent_workers = True, 
                                   shuffle=True)
     val_dataloader = DataLoader(val_dataset,
