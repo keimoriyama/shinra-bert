@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 import argparse
 from tqdm import tqdm
 from omegaconf import OmegaConf
+import os
 
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import MLFlowLogger
@@ -24,10 +25,8 @@ tokenizer = BertTokenizer.from_pretrained(bert_version)
 def tokenize_text(text):
     return tokenizer(text,
                     return_tensors='pt',
-                    # padding='max_length',
-                    # truncation = True
-                    )
-
+                    padding='max_length',
+                    truncation = True)
 
 class ShinraDataset(Dataset):
     def __init__(self, data):
@@ -45,7 +44,6 @@ class ShinraDataset(Dataset):
 def collate_fn(batch):
     texts, labels = list(zip(*batch))
     texts = list(texts)
-    # print(texts)
     label = torch.tensor(labels)
     texts = tokenize_text(texts)
     return texts, label
@@ -63,9 +61,9 @@ def main():
     data_path = config.data.data_path
     file_label_name = config.data.file_label_name
     file_data_name = config.data.file_data_name
-    batch_size = config.data.batch_size
-    
-    num_workers = config.data.num_workers
+    batch_size = config.data.batch_size * num_devices
+    data_type = config.data.data_type 
+    num_workers = os.cpu_count()/ num_devices
     epoch = config.train.epoch
     lr = config.optim.learning_rate
     exp_name = config.exp_name
@@ -74,10 +72,10 @@ def main():
         mlf_logger.log_hyperparams(config.data)
         mlf_logger.log_hyperparams(config.train)
     cfg = BertConfig.from_pretrained(bert_version)
-    data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name,bert_version)
+    data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name,bert_version, data_type)
+
     class_num = max(label_index_dict.keys())
     criterion = torch.nn.CrossEntropyLoss()
-    # import ipdb;ipdb.set_trace()
     train_data, test_data = train_test_split(data)
     test_data, val_data = train_test_split(test_data)
     train_dataset = ShinraDataset(train_data)

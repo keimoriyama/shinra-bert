@@ -3,6 +3,7 @@
 *.csv
 *.pyc
 *.gz
+*.jsonl
 .DS_Store
 code/logs/stdout.txt
 *.ckpt
