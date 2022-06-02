@@ -1,7 +1,8 @@
 name: Test
-debug: True
-exp_name: bert test code
+debug: False
+exp_name: bert entire sentence
 data:
+  data_type: entire
   data_path: /data/
   file_label_name: en_ENEW_LIST.json
   file_data_name: en-trial-wiki-20190121-cirrussearch-content.json.gz

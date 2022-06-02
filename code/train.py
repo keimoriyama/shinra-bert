@@ -62,7 +62,8 @@ def main():
     file_data_name = config.data.file_data_name
     batch_size = config.data.batch_size
     data_type = config.data.data_type 
-    num_workers = int(os.cpu_count()/ num_devices)
+    # num_workers = config.data.num_workers
+    num_workers = os.cpu_count() 
     epoch = config.train.epoch
     lr = config.optim.learning_rate
     exp_name = config.exp_name
@@ -73,7 +74,7 @@ def main():
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name,bert_version, data_type)
 
-    class_num = max(label_index_dict.keys())
+    class_num = max(label_index_dict.keys()) + 1
     criterion = torch.nn.CrossEntropyLoss()
     train_data, test_data = train_test_split(data)
     test_data, val_data = train_test_split(test_data)
@@ -84,7 +85,7 @@ def main():
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=batch_size,
                                   collate_fn=collate_fn,
-                                  num_workers=num_wokers,
+                                  num_workers=num_workers,
                                   persistent_workers = True, 
                                   shuffle=True)
     val_dataloader = DataLoader(val_dataset,
