@@ -2,8 +2,8 @@ import os
 from transformers import BertTokenizer
 from tqdm import tqdm
 
-
 from data.shinra_utils import FileUtils, label_preprocess, wikidata_preprocess
+# cuDFを使うか〜？
 import pandas as pd
 
 class Tokenizer():
@@ -13,6 +13,12 @@ class Tokenizer():
     def tokenize(self, text):
         return self.tokenizer.tokenize(text)
     
+    def token2ids(self, text):
+        return self.tokenizer(text,
+                                is_split_into_words=True,
+                                return_tensors='np',
+                                padding='max_length',
+                                truncation = True)
     def decode(self, text):
         ids = self.tokenizer.convert_tokens_to_ids(text)
         return self.tokenizer.decode(ids)
@@ -69,15 +75,18 @@ def generate_train_data(wiki_df,label_df, data_type, tokenizer,max_len):
         for index in wiki_df.index:
             text = wiki_df['text'][index]
             id = wiki_df['id'][index]
+            tokenized_text = tokenizer.tokenize(text)
             if data_type == "entire":
-                tokenized_text = tokenizer.tokenize(text)
                 tokenized_texts_list = split_list(tokenized_text, max_len)
                 for text in tokenized_texts_list:
-                    pretokenized_text = tokenizer.decode(text)
-                    pair = {"id": id, "text": pretokenized_text}
+                    ids = tokenizer.token2ids(text)
+                    pair = {"id": id, 
+                            "input_ids": ids['input_ids'], 
+                            "attention_mask": ids['attention_mask'],
+                            "token_type_ids": ids['token_type_ids']}
                     append(pair)
             elif data_type == "all":
-                pair = {"id": id, "text": text}
+                pair = {"id": id, "text": tokenized_text}
                 append(pair)
             t.update(1)
     wiki_data = pd.DataFrame(tokenized_texts)
@@ -100,15 +109,15 @@ def read_data(debug, data_path, file_data_name, file_label_name, data_type, toke
     if os.path.isfile(train_data_path):
         df = pd.read_json(train_data_path, orient='records',lines=True)
         labels = df.filter(items = ['ENE_name', 'label'])
-        df = df.filter(items=["text", "label"])
+        df = df.filter(items=["input_ids", "attention_mask", "token_type_ids", "label"])
     else:
         df, labels = generate_train_data(wiki_df, label_df, data_type,tokenizer, max_len)
         df.to_json(train_data_path, orient='records', lines=True)
-        df = df.filter(items=["text", "label"])
+        df = df.filter(items=["input_ids", "attention_mask", "token_type_ids" "label"])
     return df, labels
 
 def make_input(df):
-    df = df.filter(items=["text", "label"])
+    df = df.filter(items=["input_ids", "attention_mask", "token_type_ids" , "label"])
     text_ans_pair = df.values.tolist()
     return text_ans_pair
 
