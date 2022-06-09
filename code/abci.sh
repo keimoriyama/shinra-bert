@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#$ -l rt_G.large=1
+#$ -l rt_F=1
 #$ -l h_rt=72:00:00 
 #$ -j y
 #$ -cwd
@@ -17,18 +17,18 @@
 # qrsh -g gcc50441 -l rt_G.large=1 -l h_rt=4:00:00 
 
 source /etc/profile.d/modules.sh
-module load cuda/11.3/11.3.1
+module load cuda/11.6/11.6.2
 module load cudnn/8.3/8.3.3
 module load gcc/11.2.0
 module load python/3.8/3.8.13
-module load nccl/2.9/2.9.9-1
+module load nccl/2.12/2.12.10-1
 module load openmpi/4.0.5
 
 echo "python version is"
 python3 -V
 
-pip3 install -r requirements.txt
-pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
+# pip3 install -r requirements.txt
+# pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
 
 cd /home/acd14210nv/shinra-bert/code
 

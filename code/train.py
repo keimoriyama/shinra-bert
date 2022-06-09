@@ -67,23 +67,15 @@ def main():
     file_data_name = config.data.file_data_name
     batch_size = config.data.batch_size
     data_type = config.data.data_type 
-    cpu_num = os.cpu_count()
-    if cpu_num >= 40:
-        num_workers = 40
-    else:
-        num_workers = cpu_count
-    # num_workers = min(os.cpu_count(), 4H0)
+    num_workers= config.data.num_workers
     epoch = config.train.epoch
     lr = config.optim.learning_rate
     exp_name = config.exp_name
 
     num_devices = torch.cuda.device_count()
-    device_ids = list(range(num_devices))
-
     print(f"{num_devices} GPUs available")
 
     bert_version = "bert-base-cased"
-    tokenizer = BertTokenizer.from_pretrained(bert_version)
 
     if not debug:
         mlf_logger = MLFlowLogger(experiment_name = exp_name)
@@ -103,19 +95,19 @@ def main():
                                   batch_size=batch_size,
                                   collate_fn=collate_fn,
                                   num_workers=num_workers,
-                                  persistent_workers = True, 
+                                  # persistent_workers = True, 
                                   shuffle=True)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=batch_size,
                                 collate_fn=collate_fn,
                                 num_workers=num_workers,
-                                persistent_workers = True,
+                                # persistent_workers = True,
                                 shuffle=False)
     test_dataloader = DataLoader(test_dataset,
                                  batch_size=batch_size,
                                  collate_fn=collate_fn,
                                  num_workers=num_workers,
-                                 persistent_workers = True,
+                                 # persistent_workers = True,
                                  shuffle=False)
 
     model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
