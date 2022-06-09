@@ -9,3 +9,4 @@ code/logs/stdout.txt
 *.ckpt
 mlruns/
 code/logs/stdout.txt
+code/logs/stdout.txt
