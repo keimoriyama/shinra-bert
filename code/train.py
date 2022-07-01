@@ -1,4 +1,3 @@
-from multiprocessing import cpu_count
 from preprocess import preprocess
 from model import MyBertSequenceClassification, BertModelForClassification
 from transformers import BertConfig, BertTokenizer
@@ -11,10 +10,12 @@ from omegaconf import OmegaConf
 import os
 
 from tqdm import tqdm
+from typing import OrderedDict
 
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import MLFlowLogger
 
+device =  'cuda' if torch.cuda.is_available() else 'cpu'
 
 def tokenize_text(text):
     return tokenizer(text,
@@ -114,29 +115,40 @@ def main():
                                  shuffle=False)
 
     model = BertModelForClassification(cfg, class_num)
-    optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+    model = model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.CrossEntropyLoss()
-    train(model, dataloader, optimizer, criterion)
+    for i in epoch:
+        train(model, i, train_dataloader, optimizer, criterion, config)
 
-def train(model, dataloader,optimizer, criterion):
-    for text, label in dataloader:
-        text = text.to(device)
-        label = label.to(device)
-        out = model(text)
-        loss = criterion(out, label)
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-def train(model, dataloader, criterion):
+def train(model, epoch, dataloader,optimizer, criterion, cfg):
+    with tqdm(dataloader) as pbar:
+        pbar.set_description(f'[Epoch {epoch + 1}/{cfg.train.epoch}')
+        import ipdb; ipdb.set_trace()
+        for text, label in dataloader:
+            text = text.to(device)
+            label = label.to(device)
+            out = model(text)
+            loss = criterion(out, label)
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            pbar.set_postfix(
+                OrderedDict(
+                    Loss = loss.item()
+                )
+            )
+
+def validate(model, dataloader, criterion):
     for text, label in dataloader:
         text = text.to(device)
         label = label.to(device)
         with torch.no_grad():
             out = model(**text)[1]
             loss = criterion(out, label)
-    
+
 
 if __name__ == '__main__':
     main()
