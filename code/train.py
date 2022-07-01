@@ -1,6 +1,6 @@
 from multiprocessing import cpu_count
 from preprocess import preprocess
-from model import MyBertSequenceClassification
+from model import MyBertSequenceClassification, BertModelForClassification
 from transformers import BertConfig, BertTokenizer
 import torch
 import torch.nn as nn
@@ -81,12 +81,15 @@ def main():
         mlf_logger = MLFlowLogger(experiment_name = exp_name)
         mlf_logger.log_hyperparams(config.data)
         mlf_logger.log_hyperparams(config.train)
+
+    print("reading dataset")
     cfg = BertConfig.from_pretrained(bert_version)
     data, label_index_dict = preprocess(debug, data_path, file_data_name, file_label_name,bert_version, data_type)
     class_num = max(label_index_dict.keys()) + 1
-    criterion = torch.nn.CrossEntropyLoss()
     train_data, test_data = train_test_split(data)
     test_data, val_data = train_test_split(test_data)
+
+    print("making dataset")
     train_dataset = ShinraDataset(train_data)
     test_dataset = ShinraDataset(test_data)
     val_dataset = ShinraDataset(val_data)
@@ -110,19 +113,29 @@ def main():
                                  # persistent_workers = True,
                                  shuffle=False)
 
-    model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
-    if debug:
-        trainer = Trainer(max_epochs = 1)
-        trainer.fit(model, train_dataloader)
-    else:
-        trainer = Trainer(max_epochs = epoch,
-                            accelerator="gpu", 
-                            devices = num_devices, 
-                            strategy="ddp_find_unused_parameters_false",
-                            logger = mlf_logger
-                            )
-        trainer.fit(model, train_dataloader, val_dataloader)
-        trainer.test(model, test_dataloader)
+    model = BertModelForClassification(cfg, class_num)
+    optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+    criterion = torch.nn.CrossEntropyLoss()
+    train(model, dataloader, optimizer, criterion)
+
+def train(model, dataloader,optimizer, criterion):
+    for text, label in dataloader:
+        text = text.to(device)
+        label = label.to(device)
+        out = model(text)
+        loss = criterion(out, label)
+        
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        
+def train(model, dataloader, criterion):
+    for text, label in dataloader:
+        text = text.to(device)
+        label = label.to(device)
+        with torch.no_grad():
+            out = model(**text)[1]
+            loss = criterion(out, label)
     
 
 if __name__ == '__main__':
