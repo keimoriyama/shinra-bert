@@ -34,6 +34,7 @@ class FileUtils:
             for line in f:
                 if line == '\n':
                     continue
+                # print(line)
                 file = json.loads(line)
                 data.append(file)
                 t.update()
@@ -48,8 +49,6 @@ class FileUtils:
                     continue
                 file = json.loads(line)
                 data.append(file)
-                if limit and len(data) == self.limit:
-                    break
                 t.update()
         return data
 
@@ -69,17 +68,14 @@ def label_preprocess(labels):
 
 
 def wikidata_preprocess(wikidata):
-    # df = pd.DataFrame()
     wiki_dict_list = []
     for wiki in tqdm.tqdm(wikidata, desc="extracting wiki data"):
-        # print(wiki.keys())
         wikidict = {"type": wiki['index']['_type'],
                     "id": wiki['index']['_id'],
                     "text": wiki['text']}
         wiki_dict_list.append(wikidict)
     wiki_df = pd.DataFrame(wiki_dict_list)
-    # df = pd.concat([df, wiki_df])
-    return df
+    return wiki_df
 # 実装のテスト　
 
 
