@@ -4,6 +4,18 @@ import torch
 import pytorch_lightning as pl
 from sklearn.metrics import f1_score
 
+class BertModelForClassification(torch.nn.Module):
+    def __init__(self, cfg, class_num):
+        super(BertModelForClassification, self).__init__()
+        self.model = BertModel(cfg)
+        self.in_features = self.model.pooler.dense.out_features
+        self.out_features = class_num
+        self.linear = nn.Linear(self.in_features, self.out_features)
+    
+    def forward(self, x):
+        out = self.model(**x)[1]
+        out = self.linear(out)
+        return out
 
 class MyBertSequenceClassification(pl.LightningModule):
     def __init__(self, cfg, class_num, criterion, lr) -> None:
