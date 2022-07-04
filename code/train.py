@@ -3,6 +3,12 @@ from model import  BertModelForClassification
 from transformers import BertConfig
 import torch
 from torch.utils.data import Dataset, DataLoader
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+import torch.multiprocessing as mp
+
+import os
+
 from sklearn.model_selection import train_test_split
 import argparse
 from omegaconf import OmegaConf
@@ -46,6 +52,11 @@ def collate_fn(batch):
 
 parser = argparse.ArgumentParser()
 
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size= world_size)
+
 
 def main():
     seed_everything(10)
@@ -64,6 +75,7 @@ def main():
     num_workers= config.data.num_workers
     epoch = config.train.epoch
     lr = config.optim.learning_rate
+    rank = config.train.rank
     exp_name = config.exp_name
 
     num_devices = torch.cuda.device_count()
@@ -71,9 +83,8 @@ def main():
 
     bert_version = "bert-base-cased"
 
-    if not debug:
-        mlflow.log_param(config.data)
-        mlflow.log_param(config.train)
+    mlflow.log_params(config.data)
+    mlflow.log_params(config.train)
 
     print("reading dataset")
     cfg = BertConfig.from_pretrained(bert_version)
@@ -87,12 +98,16 @@ def main():
     test_dataset = ShinraDataset(test_data)
     val_dataset = ShinraDataset(val_data)
 
+    setup(rank, num_devices)
+
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True)
+
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=batch_size,
                                   collate_fn=collate_fn,
                                   num_workers=num_workers,
-                                  # persistent_workers = True, 
-                                  shuffle=True)
+                                  shuffle=train_sampler is None,
+                                  sampler = train_sampler)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=batch_size,
                                 collate_fn=collate_fn,
@@ -107,11 +122,16 @@ def main():
                                  shuffle=False)
 
     model = BertModelForClassification(cfg, class_num)
-    model = model.to(device)
+    model = DDP(model, device_ids = [rank])
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.CrossEntropyLoss()
     for i in range(epoch):
-        train_loss = train(model, i, train_dataloader, optimizer, criterion, config)
+        mp.spawn(train,
+                args = (model, i, train_dataloader, optimizer, criterion, config),
+                nprocs = num_devices,
+                join=True
+        )
+        # train_loss = train(model, i, train_dataloader, optimizer, criterion, config)
         valid_acc, valid_loss = validate(model, i, val_dataloader, criterion, config)
         mlflow.log_metric(key = 'train loss', value=train_loss, step = i+1)
         mlflow.log_metric(key = 'validation loss', value=valid_loss, step = i+1)
@@ -121,15 +141,16 @@ def main():
     mlflow.end_run()
 
 def train(model, epoch, dataloader,optimizer, criterion, cfg):
+    rank = cfg.train.rank
     with tqdm(dataloader) as pbar:
         pbar.set_description(f'Train [Epoch {epoch + 1}/{cfg.train.epoch}')
         loss_mean = 0
         for text, label in pbar:
             # import ipdb;ipdb.set_trace()
-            text['input_ids'] = text['input_ids'].to(device)
-            text['attention_mask'] = text['attention_mask'].to(device)
-            text['token_type_ids'] = text['token_type_ids'].to(device)
-            label = label.to(device)
+            text['input_ids'] = text['input_ids'].to(rank)
+            text['attention_mask'] = text['attention_mask'].to(rank)
+            text['token_type_ids'] = text['token_type_ids'].to(rank)
+            label = label.to(rank)
             out = model(text)
             loss = criterion(out, label)
             loss_mean += loss.item()
@@ -146,6 +167,7 @@ def train(model, epoch, dataloader,optimizer, criterion, cfg):
         return loss_mean
 
 def validate(model, epoch, dataloader, criterion, cfg):
+    rank = cfg.train.rank
     with tqdm(dataloader) as pbar:
         pbar.set_description(f'Validation [Epoch {epoch + 1}/{cfg.train.epoch}')
         acc, loss_mean = 0, 0
@@ -175,7 +197,7 @@ def test(model, dataloader, criterion):
         pbar.set_description(f'Testing')
         acc, loss_mean = 0, 0
         for text, label in dataloader:
-            text['input_ids'] = text['input_ids'].to(device)
+            text['input_ids'] = text['input_ids'].to(rank)
             text['attention_mask'] = text['attention_mask'].to(device)
             text['token_type_ids'] = text['token_type_ids'].to(device)
             label = label.to(device)
