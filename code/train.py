@@ -1,27 +1,19 @@
 from preprocess import preprocess
-from model import MyBertSequenceClassification, BertModelForClassification
-from transformers import BertConfig, BertTokenizer
+from model import  BertModelForClassification
+from transformers import BertConfig
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import argparse
 from omegaconf import OmegaConf
-import os
 
 from tqdm import tqdm
 from typing import OrderedDict
 
-from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.loggers import MLFlowLogger
+from pytorch_lightning import seed_everything
+import mlflow
 
 device =  'cuda' if torch.cuda.is_available() else 'cpu'
-
-def tokenize_text(text):
-    return tokenizer(text,
-                    return_tensors='pt',
-                    padding='max_length',
-                    truncation = True)
 
 class ShinraDataset(Dataset):
     def __init__(self, data):
@@ -50,7 +42,6 @@ def collate_fn(batch):
         'attention_mask': attn_mask,
         'token_type_ids': token_types
     }
-    # print(inputs, labels)
     return inputs, label
 
 parser = argparse.ArgumentParser()
@@ -58,6 +49,8 @@ parser = argparse.ArgumentParser()
 
 def main():
     seed_everything(10)
+    mlflow.start_run()
+
     parser.add_argument("--config_file")
     args = parser.parse_args()
     config = OmegaConf.load("./config/" + args.config_file)
@@ -79,9 +72,8 @@ def main():
     bert_version = "bert-base-cased"
 
     if not debug:
-        mlf_logger = MLFlowLogger(experiment_name = exp_name)
-        mlf_logger.log_hyperparams(config.data)
-        mlf_logger.log_hyperparams(config.train)
+        mlflow.log_param(config.data)
+        mlflow.log_param(config.train)
 
     print("reading dataset")
     cfg = BertConfig.from_pretrained(bert_version)
@@ -118,19 +110,29 @@ def main():
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.CrossEntropyLoss()
-    for i in epoch:
-        train(model, i, train_dataloader, optimizer, criterion, config)
+    for i in range(epoch):
+        train_loss = train(model, i, train_dataloader, optimizer, criterion, config)
+        valid_acc, valid_loss = validate(model, i, val_dataloader, criterion, config)
+        mlflow.log_metric(key = 'train loss', value=train_loss, step = i+1)
+        mlflow.log_metric(key = 'validation loss', value=valid_loss, step = i+1)
+        mlflow.log_metric(key = 'validation accuracy', value=valid_acc, step = i+1)
+
+    test(model, test_dataloader, criterion)
+    mlflow.end_run()
 
 def train(model, epoch, dataloader,optimizer, criterion, cfg):
     with tqdm(dataloader) as pbar:
-        pbar.set_description(f'[Epoch {epoch + 1}/{cfg.train.epoch}')
-        import ipdb; ipdb.set_trace()
-        for text, label in dataloader:
-            text = text.to(device)
+        pbar.set_description(f'Train [Epoch {epoch + 1}/{cfg.train.epoch}')
+        loss_mean = 0
+        for text, label in pbar:
+            # import ipdb;ipdb.set_trace()
+            text['input_ids'] = text['input_ids'].to(device)
+            text['attention_mask'] = text['attention_mask'].to(device)
+            text['token_type_ids'] = text['token_type_ids'].to(device)
             label = label.to(device)
             out = model(text)
             loss = criterion(out, label)
-            
+            loss_mean += loss.item()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -140,15 +142,57 @@ def train(model, epoch, dataloader,optimizer, criterion, cfg):
                     Loss = loss.item()
                 )
             )
+        loss_mean = loss_mean / len(dataloader)
+        return loss_mean
 
-def validate(model, dataloader, criterion):
-    for text, label in dataloader:
-        text = text.to(device)
-        label = label.to(device)
-        with torch.no_grad():
-            out = model(**text)[1]
-            loss = criterion(out, label)
+def validate(model, epoch, dataloader, criterion, cfg):
+    with tqdm(dataloader) as pbar:
+        pbar.set_description(f'Validation [Epoch {epoch + 1}/{cfg.train.epoch}')
+        acc, loss_mean = 0, 0
+        for text, label in dataloader:
+            # import ipdb;ipdb.set_trace()
+            text['input_ids'] = text['input_ids'].to(device)
+            text['attention_mask'] = text['attention_mask'].to(device)
+            text['token_type_ids'] = text['token_type_ids'].to(device)
+            label = label.to(device)
+            with torch.no_grad():
+                out = model(text)
+                loss = criterion(out, label)
+            pred = out.argmax(axis = 1)
+            acc += torch.sum(pred == label).item()/len(label)
+            loss_mean += loss.item()
+            pbar.set_postfix(
+                    OrderedDict(
+                        Loss = loss_mean,
+                        Acc = acc
+                    )
+                )
+    loss_mean = loss_mean / len(dataloader)
+    return acc, loss_mean
 
+def test(model, dataloader, criterion):
+    with tqdm(dataloader) as pbar:
+        pbar.set_description(f'Testing')
+        acc, loss_mean = 0, 0
+        for text, label in dataloader:
+            text['input_ids'] = text['input_ids'].to(device)
+            text['attention_mask'] = text['attention_mask'].to(device)
+            text['token_type_ids'] = text['token_type_ids'].to(device)
+            label = label.to(device)
+            with torch.no_grad():
+                out = model(text)
+                loss = criterion(out, label)
+            pred = out.argmax(axis = 1)
+            acc += torch.sum(pred == label).item()/len(label)
+            loss_mean += loss.item()
+            pbar.set_postfix(
+                    OrderedDict(
+                        Loss = loss_mean,
+                        Acc = acc
+                    )
+                )
+    loss_mean = loss_mean / len(dataloader)
+    return acc, loss_mean
 
 if __name__ == '__main__':
     main()
