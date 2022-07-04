@@ -1,5 +1,5 @@
 name: Test
-debug: False
+debug: True
 exp_name: bert entire sentence
 data:
   data_type: entire
