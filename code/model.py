@@ -11,7 +11,7 @@ class BertModelForClassification(torch.nn.Module):
         self.in_features = self.model.pooler.dense.out_features
         self.out_features = class_num
         self.linear = nn.Linear(self.in_features, self.out_features)
-    
+
     def forward(self, x):
         out = self.model(**x)[1]
         out = self.linear(out)
