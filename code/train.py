@@ -1,5 +1,5 @@
 from preprocess import preprocess
-from model import  BertModelForClassification
+from model import  BertModelForClassification, MyBertSequenceClassification
 from transformers import BertConfig
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -16,8 +16,9 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 from typing import OrderedDict
 
-from pytorch_lightning import seed_everything
-import mlflow
+from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.loggers import MLFlowLogger
+
 
 device =  'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -51,12 +52,12 @@ def collate_fn(batch):
     return inputs, label
 
 parser = argparse.ArgumentParser()
-
+"""
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size= world_size)
-
+"""
 
 def main():
     seed_everything(10)
@@ -82,9 +83,11 @@ def main():
     print(f"{num_devices} GPUs available")
 
     bert_version = "bert-base-cased"
-
-    mlflow.log_params(config.data)
-    mlflow.log_params(config.train)
+    mlf_logger = MLFlowLogger(experiment_name = exp_name)
+    mlf_logger.log_hyperparams(config.data)
+    mlf_logger.log_hyperparams(config.train)
+    # mlflow.log_params(config.data)
+    # mlflow.log_params(config.train)
 
     print("reading dataset")
     cfg = BertConfig.from_pretrained(bert_version)
@@ -98,16 +101,15 @@ def main():
     test_dataset = ShinraDataset(test_data)
     val_dataset = ShinraDataset(val_data)
 
-    setup(rank, num_devices)
+    # setup(rank, num_devices)
 
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True)
+    # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True)
 
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=batch_size,
                                   collate_fn=collate_fn,
                                   num_workers=num_workers,
-                                  shuffle=train_sampler is None,
-                                  sampler = train_sampler)
+                                  )
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=batch_size,
                                 collate_fn=collate_fn,
@@ -120,18 +122,27 @@ def main():
                                  num_workers=num_workers,
                                  # persistent_workers = True,
                                  shuffle=False)
-
+    criterion = torch.nn.CrossEntropyLoss()
+    model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
+    trainer = Trainer(max_epochs = epoch,
+                            accelerator="gpu", 
+                            devices = num_devices, 
+                            strategy="ddp_find_unused_parameters_false",
+                            logger = mlf_logger
+                            )
+    trainer.fit(model, train_dataloader, val_dataloader)
+    trainer.test(model, test_dataloader)
+    """
     model = BertModelForClassification(cfg, class_num)
     model = DDP(model, device_ids = [rank])
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = torch.nn.CrossEntropyLoss()
     for i in range(epoch):
         mp.spawn(train,
                 args = (model, i, train_dataloader, optimizer, criterion, config),
                 nprocs = num_devices,
                 join=True
         )
-        # train_loss = train(model, i, train_dataloader, optimizer, criterion, config)
+        # trai_loss = train(model, i, train_dataloader, optimizer, criterion, config)
         valid_acc, valid_loss = validate(model, i, val_dataloader, criterion, config)
         mlflow.log_metric(key = 'train loss', value=train_loss, step = i+1)
         mlflow.log_metric(key = 'validation loss', value=valid_loss, step = i+1)
@@ -139,7 +150,7 @@ def main():
 
     test(model, test_dataloader, criterion)
     mlflow.end_run()
-
+    """
 def train(model, epoch, dataloader,optimizer, criterion, cfg):
     rank = cfg.train.rank
     with tqdm(dataloader) as pbar:

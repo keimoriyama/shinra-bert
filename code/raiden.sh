@@ -10,7 +10,10 @@
 #$ -m e
 #$ -m a
 #$ -ac d=nvcr-pytorch-2205
+#$ d_shm=50G
 
+
+# python -m torch.distributed.launch --nproc_per_node=4 --nnodes=2 --node_rank=0 --master_addr=localhost --master_port=12345 train.py --config_file abci-yml
 . /fefs/opt/dgx/env_set/nvcr-pytorch-2205.sh
 
 export MY_PROXY_URL="http://10.1.10.1:8080/"
