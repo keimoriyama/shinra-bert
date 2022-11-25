@@ -1,0 +1,13 @@
+*.json
+*.zip
+*.csv
+*.pyc
+*.gz
+*.jsonl
+.DS_Store
+code/logs/stdout.txt
+*.ckpt
+mlruns/
+code/logs/stdout.txt
+code/logs/stdout.txt
+data/Location

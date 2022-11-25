@@ -1,0 +1,27 @@
+{
+    "name": "python-shinra",
+    "dockerFile": "Dockerfile",
+    "settings": {
+        "python.pythonPath": "/opt/conda/bin/python",
+        "python.linting.pylintEnabled": false,
+        "python.linting.flake8Enabled": true,
+        "python.linting.flake8Args": [
+            "--ignore=E402,E501"
+        ],
+        "python.formatting.provider": "autopep8",
+        "python.formatting.autopep8Path": "/opt/conda/bin/autopep8",
+        "python.formatting.autopep8Args": [
+            "--ignore",
+            "E402,E501",
+            "--max-line-length",
+            "150"
+        ],
+        "[python]": {
+            "editor.formatOnSave": true
+        }
+    },
+    "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+    ],
+}
