@@ -127,35 +127,21 @@ def main():
                                  # persistent_workers = True,
                                  shuffle=False)
     criterion = torch.nn.CrossEntropyLoss()
-    model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
-    trainer = Trainer(max_epochs = epoch,
-                            accelerator="gpu", 
-                            devices = num_devices, 
-                            strategy="ddp_find_unused_parameters_false",
-                            logger = mlf_logger
-                            )
-    trainer.fit(model, train_dataloader, val_dataloader)
-    trainer.test(model, test_dataloader)
-    """
+    # model = MyBertSequenceClassification(cfg, class_num, criterion, lr)
+    
+    
     model = BertModelForClassification(cfg, class_num)
-    model = DDP(model, device_ids=[rank])
+    # model = DDP(model, device_ids=[rank])
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    for i in range(epoch):
-        mp.spawn(
-            train,
-            args=(model, i, train_dataloader, optimizer, criterion, config),
-            nprocs=num_devices,
-            join=True,
-        )
-        # trai_loss = train(model, i, train_dataloader, optimizer, criterion, config)
-        valid_acc, valid_loss = validate(model, i, val_dataloader, criterion, config)
-        mlflow.log_metric(key="train loss", value=train_loss, step=i + 1)
-        mlflow.log_metric(key="validation loss", value=valid_loss, step=i + 1)
-        mlflow.log_metric(key="validation accuracy", value=valid_acc, step=i + 1)
+    train_loss = train(model, i, train_dataloader, optimizer, criterion, config)
+    valid_acc, valid_loss = validate(model, i, val_dataloader, criterion, config)
+    mlflow.log_metric(key="train loss", value=train_loss, step=i + 1)
+    mlflow.log_metric(key="validation loss", value=valid_loss, step=i + 1)
+    mlflow.log_metric(key="validation accuracy", value=valid_acc, step=i + 1)
 
     test(model, test_dataloader, criterion)
     mlflow.end_run()
-    """
+   
 def train(model, epoch, dataloader,optimizer, criterion, cfg):
     rank = cfg.train.rank
     with tqdm(dataloader) as pbar:
