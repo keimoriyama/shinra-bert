@@ -166,12 +166,10 @@ def train(model, epoch, dataloader,optimizer, criterion, cfg):
 
 
 def validate(model, epoch, dataloader, criterion, cfg):
-    rank = cfg.train.rank
     with tqdm(dataloader) as pbar:
         pbar.set_description(f"Validation [Epoch {epoch + 1}/{cfg.train.epoch}")
         acc, loss_mean = 0, 0
         for text, label in dataloader:
-            # import ipdb;ipdb.set_trace()
             text["input_ids"] = text["input_ids"].to(device)
             text["attention_mask"] = text["attention_mask"].to(device)
             text["token_type_ids"] = text["token_type_ids"].to(device)
