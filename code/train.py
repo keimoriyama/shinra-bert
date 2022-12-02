@@ -143,7 +143,6 @@ def main():
     mlflow.end_run()
    
 def train(model, epoch, dataloader,optimizer, criterion, cfg):
-    rank = cfg.train.rank
     with tqdm(dataloader) as pbar:
         pbar.set_description(f"Train [Epoch {epoch + 1}/{cfg.train.epoch}")
         loss_mean = 0
